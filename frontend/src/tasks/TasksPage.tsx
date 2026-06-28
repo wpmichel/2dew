@@ -1,7 +1,7 @@
 import { useReducer } from "react";
 import { useTasks } from "./useTasks";
 import { useCompletedTasks } from "./useCompletedTasks";
-import { TaskForm } from "./TaskForm";
+import { InlineCreateRow } from "./InlineCreateRow";
 import { TaskRow } from "./TaskRow";
 import { CompletedSection } from "./CompletedSection";
 
@@ -19,11 +19,6 @@ export function TasksPage() {
 
   return (
     <>
-      <section className="card create-panel">
-        <h2>Add a task</h2>
-        <TaskForm submitLabel="Add task" onSubmit={tasks.createTask} />
-      </section>
-
       <div className="toolbar">
         <input
           type="search"
@@ -33,6 +28,8 @@ export function TasksPage() {
           aria-label="Search tasks"
         />
       </div>
+
+      <InlineCreateRow onCreate={tasks.createTask} />
 
       {tasks.error && tasks.status === "ready" && (
         <p className="error-banner" role="alert">

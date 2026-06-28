@@ -150,12 +150,16 @@ update.
 3. **Search tasks.** A debounced search box queries the server for a case-insensitive match
    on title and description across all of the user's tasks (not just the loaded pages).
    Changing the search term resets pagination and refetches from the first page.
-4. **Create a task.** A form validates input before submit, shows validation errors, and
-   preserves the user's input when validation fails.
-5. **Edit a task.** An edit form pre-populated with the task's current values; validation
-   behaves as in create.
-6. **Complete / reopen a task.** A toggle flips completion state.
-7. **Delete a task.** A delete action with a confirmation step.
+4. **Create a task.** Type a title into the blank "Add a task" row at the top of the stack and
+   press Enter; the task appears immediately. Empty titles are ignored; the server still
+   validates and surfaces errors.
+5. **Edit a task.** Each field is edited in place — click the title, note, or due date (or the
+   faint "+ Add note" / "+ Add due date" prompts) to edit just that field. Enter or blur saves;
+   Escape cancels. No separate edit form.
+6. **Complete / reopen a task.** Checking a task completes it and moves it to the completed
+   section; reopening it from there returns it to the active list.
+7. **Delete a task.** A trash icon soft-deletes the task into the completed section (no
+   confirmation dialog); it can be restored from there by marking it not completed.
 8. **Immediate, optimistic UI.** Every create, edit, complete, and delete updates the list
    immediately without a page refresh; the UI never blocks on the network. Each mutation fires
    its own request:

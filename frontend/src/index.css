@@ -153,14 +153,7 @@ textarea[aria-invalid="true"] {
   font-size: 0.9rem;
 }
 
-/* Create panel + search */
-.create-panel {
-  margin-bottom: 1.25rem;
-}
-.create-panel h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.05rem;
-}
+/* Search */
 .toolbar {
   margin-bottom: 1rem;
 }
@@ -168,10 +161,26 @@ textarea[aria-invalid="true"] {
   max-width: 100%;
 }
 
-/* Task form */
-.task-form-actions {
-  display: flex;
-  gap: 0.5rem;
+/* Inline quick-add row */
+.task-add-row {
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.task-add-plus {
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  width: 1.1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.task-add-input {
+  border: none;
+  background: none;
+  padding: 0.15rem 0;
+}
+.task-add-input:focus {
+  outline: none;
 }
 
 /* State rows */
@@ -204,9 +213,6 @@ textarea[aria-invalid="true"] {
   border-radius: 8px;
   padding: 0.75rem 0.9rem;
 }
-.task-row-editing {
-  display: block;
-}
 .task-check {
   width: auto;
   margin-top: 0.2rem;
@@ -235,22 +241,52 @@ textarea[aria-invalid="true"] {
   text-decoration: line-through;
   color: var(--done);
 }
+
+/* Click-to-edit affordances */
+.editable {
+  cursor: text;
+  border-radius: 4px;
+}
+.editable:hover {
+  background: var(--bg);
+  box-shadow: 0 0 0 4px var(--bg);
+}
+.task-add-field {
+  margin-top: 0.3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.task-add-field:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+.task-field-edit {
+  width: 100%;
+  padding: 0.2rem 0.4rem;
+}
+.task-title-edit {
+  font-weight: 500;
+}
+.task-desc-edit {
+  margin-top: 0.2rem;
+}
+.task-due-edit {
+  margin-top: 0.3rem;
+  max-width: 16rem;
+}
+
 .task-actions {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   flex-shrink: 0;
 }
-.task-actions button {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.85rem;
-}
 .task-pending {
   color: var(--muted);
-}
-.confirm-label {
-  font-size: 0.85rem;
-  color: var(--danger);
 }
 .load-more {
   display: flex;
