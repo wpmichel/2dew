@@ -29,13 +29,16 @@ The following are intentionally out of scope and noted as such in the README:
 
 A deliberately flat structure matched to a single-entity CRUD app.
 
-- **Backend:** one ASP.NET Core Web API project (.NET 10). Controllers talk to an EF Core
-  `DbContext` directly. No repository layer, no MediatR/CQRS, no multi-project split —
-  one entity does not warrant those abstractions.
+- **Backend:** one ASP.NET Core Web API project (.NET 10). Controllers run hand-written SQL via
+  Dapper directly against the connection. No repository layer, no MediatR/CQRS, no multi-project
+  split — one entity does not warrant those abstractions. Raw SQL is chosen over an ORM for
+  transparency, index control, and predictable performance on a small schema.
 - **Frontend:** one React + TypeScript app built with Vite. A small typed API client plus
-  React hooks/context for state. No Redux.
-- **Database:** SQLite, file-backed (e.g. `app.db`) via EF Core, so data survives restarts.
-  EF Core migrations are applied at startup so a fresh clone runs with no manual DB steps.
+  React hooks/context for state. No Redux. The API contract is generated from the backend's
+  OpenAPI document (`openapi-typescript`) so the C#↔TypeScript types cannot silently drift.
+- **Database:** SQLite, file-backed (e.g. `app.db`) via Dapper + Microsoft.Data.Sqlite, so data
+  survives restarts. The schema is created at startup with idempotent `CREATE TABLE IF NOT EXISTS`
+  so a fresh clone runs with no manual DB steps.
 - **Containerization:** a multi-stage `Dockerfile` for each app and a top-level
   `docker-compose.yml`, so `docker compose up` brings up the whole stack. This keeps setup
   reproducible and leaves a clean path to ship to the cloud later. Local (non-Docker) run
@@ -48,7 +51,7 @@ A deliberately flat structure matched to a single-entity CRUD app.
 ### Repository layout
 
 ```
-/backend            ASP.NET Core Web API + EF Core (SQLite)
+/backend            ASP.NET Core Web API + Dapper (SQLite)
 /frontend           React + TypeScript (Vite)
 justfile            Local task runner (setup, run, test)
 docker-compose.yml  Runs backend + frontend together
