@@ -41,7 +41,7 @@ export function TasksPage() {
 
       {tasks.status === "ready" && tasks.tasks.length === 0 && (
         <p className="empty state-row">
-          {tasks.search
+          {tasks.search.trim()
             ? "No tasks match your search."
             : "No tasks yet — add your first one above."}
         </p>

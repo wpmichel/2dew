@@ -1,7 +1,7 @@
 import type { components } from "./schema";
 
 // Convenience aliases over the OpenAPI-generated schema so app code uses clean names.
-// The backend is the source of truth; regenerate schema.ts with `npm run gen:api`.
+// The backend is the source of truth; regenerate schema.ts with `pnpm gen:api`.
 export type TaskResponse = components["schemas"]["TaskResponse"];
 export type CreateTaskRequest = components["schemas"]["CreateTaskRequest"];
 export type UpdateTaskRequest = components["schemas"]["UpdateTaskRequest"];
