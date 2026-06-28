@@ -10,20 +10,14 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-# The warning this project most wants surfaced: unnecessary using directives.
-dotnet_diagnostic.IDE0005.severity = warning
 
-# Conventions the codebase already follows.
+dotnet_diagnostic.IDE0005.severity = error
 csharp_style_namespace_declarations = file_scoped:warning
 csharp_using_directive_placement = outside_namespace:warning
 dotnet_sort_system_directives_first = true
-
-# Prefer 'var' where the type is apparent, matching existing style.
 csharp_style_var_for_built_in_types = true:suggestion
 csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_style_var_elsewhere = true:suggestion
-
-# Expression-bodied members are used liberally here.
 csharp_style_expression_bodied_methods = when_on_single_line:suggestion
 csharp_style_expression_bodied_constructors = when_on_single_line:suggestion
 csharp_style_expression_bodied_properties = true:suggestion

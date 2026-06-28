@@ -1,4 +1,4 @@
-# To-Do Task Management App — Specification
+# To-Do Task Management App - Specification
 
 A small, full-stack to-do task management application: a .NET Core API backend, a
 React + TypeScript frontend, and a SQLite database. The emphasis is a focused product
@@ -31,7 +31,7 @@ A deliberately flat structure matched to a single-entity CRUD app.
 
 - **Backend:** one ASP.NET Core Web API project (.NET 10). Controllers run hand-written SQL via
   Dapper directly against the connection. No repository layer, no MediatR/CQRS, no multi-project
-  split — one entity does not warrant those abstractions. Raw SQL is chosen over an ORM for
+  split - one entity does not warrant those abstractions. Raw SQL is chosen over an ORM for
   transparency, index control, and predictable performance on a small schema.
 - **Frontend:** one React + TypeScript app built with Vite. A small typed API client plus
   React hooks/context for state. No Redux. The API contract is generated from the backend's
@@ -40,8 +40,8 @@ A deliberately flat structure matched to a single-entity CRUD app.
   survives restarts. The schema is created at startup with idempotent `CREATE TABLE IF NOT EXISTS`
   so a fresh clone runs with no manual DB steps.
 - **Task runner:** a top-level `justfile` ([casey/just](https://github.com/casey/just))
-  provides the canonical local commands — installing dependencies, running each app, and
-  running tests — so contributors use one consistent entry point instead of memorizing
+  provides the canonical local commands - installing dependencies, running each app, and
+  running tests - so contributors use one consistent entry point instead of memorizing
   per-stack commands.
 
 ### Repository layout
@@ -78,26 +78,30 @@ README.md           Setup, what was built, trade-offs, future work
 
 **Task**
 
-| Field       | Type      | Notes                                    |
-| ----------- | --------- | ---------------------------------------- |
-| Id          | Guid      | Primary key                              |
-| UserId      | Guid      | Owner; foreign key to User               |
-| Title       | string    | Required, non-empty, max length enforced |
-| Description | string?   | Optional                                 |
-| DueDateUtc  | DateTime? | Optional; stored in UTC                  |
-| CompletedAt | DateTime? | UTC; null = active, non-null = completed/removed. `IsCompleted` is derived from it |
-| CreatedAt   | DateTime  | UTC                                      |
-| UpdatedAt   | DateTime  | UTC; set on every modification           |
+| Field       | Type      | Notes                                                                              |
+| ----------- | --------- | ---------------------------------------------------------------------------------- |
+| Id          | Guid      | Primary key                                                                        |
+| UserId      | Guid      | Owner; foreign key to User                                                         |
+| Title       | string    | Required, non-empty, max length enforced                                           |
+| Description | string?   | Optional                                                                           |
+| DueDateUtc  | DateTime? | Optional; stored in UTC                                                            |
+| CompletedAt | DateTime? | UTC; null = active, non-null = completed. `IsCompleted` is derived from it |
+| DeletedAt   | DateTime? | UTC; null = live, non-null = soft-deleted. Filtered out of every read query |
+| CreatedAt   | DateTime  | UTC                                                                                |
+| UpdatedAt   | DateTime  | UTC; set on every modification                                                     |
 
-A task has no hard-delete: completing it (checkbox) and removing it (trash icon) both set
-`CompletedAt`. Completed tasks surface in a separate "completed" section where they can be
-reopened (clearing `CompletedAt`), and age out of that view after a fixed TTL (30 days).
+Completing a task (checkbox) sets `CompletedAt`; completed tasks surface in a separate "completed"
+section where they can be reopened (clearing `CompletedAt`), and age out of that view after a fixed
+TTL (30 days). Deleting a task (trash icon) is a soft delete: it stamps `DeletedAt` and the row is
+retained, but it is filtered out of every read query - the active list, the completed section,
+due-soon, and get-by-id - so a deleted task disappears from all views and never resurfaces as
+"completed". The retained rows can be reclaimed later by a cleanup job (see README).
 
 ## Authentication & Ownership
 
-- `POST /api/auth/register` — accepts email + password, stores a hashed password, returns
+- `POST /api/auth/register` - accepts email + password, stores a hashed password, returns
   a JWT.
-- `POST /api/auth/login` — validates credentials, returns a JWT.
+- `POST /api/auth/login` - validates credentials, returns a JWT.
 - The JWT carries the `userId`. All task endpoints require `[Authorize]`.
 - **Ownership is enforced on every task operation.** Each query is scoped to the `userId`
   from the token, so a user cannot read or modify another user's task even by guessing IDs.
@@ -108,28 +112,28 @@ reopened (clearing `CompletedAt`), and age out of that view after a fixed TTL (3
 
 All task endpoints are owner-scoped and require a valid JWT.
 
-| Method | Route                | Purpose                                              |
-| ------ | -------------------- | ---------------------------------------------------- |
-| POST   | `/api/auth/register` | Create account, return JWT                           |
-| POST   | `/api/auth/login`    | Authenticate, return JWT                             |
-| GET    | `/api/tasks`           | List the caller's active tasks (paginated; optional search) |
-| GET    | `/api/tasks/completed` | List the caller's completed/removed tasks (paginated, TTL-bounded) |
-| GET    | `/api/tasks/due-soon`  | List active tasks due within 2 days or overdue (unpaginated, ≤50) |
-| POST   | `/api/tasks`           | Create a task                                        |
-| GET    | `/api/tasks/{id}`      | Get one task (owner only)                            |
+| Method | Route                  | Purpose                                                             |
+| ------ | ---------------------- | ------------------------------------------------------------------- |
+| POST   | `/api/auth/register`   | Create account, return JWT                                          |
+| POST   | `/api/auth/login`      | Authenticate, return JWT                                            |
+| GET    | `/api/tasks`           | List the caller's active tasks (paginated; optional search)         |
+| GET    | `/api/tasks/completed` | List the caller's completed tasks (paginated, TTL-bounded)          |
+| GET    | `/api/tasks/due-soon`  | List active tasks due within 2 days or overdue (unpaginated, ≤50)   |
+| POST   | `/api/tasks`           | Create a task                                                       |
+| GET    | `/api/tasks/{id}`      | Get one task (owner only)                                           |
 | PUT    | `/api/tasks/{id}`      | Update a task; `isCompleted` sets/clears `CompletedAt` (owner only) |
-| DELETE | `/api/tasks/{id}`      | Soft-delete a task into the completed section (owner only) |
+| DELETE | `/api/tasks/{id}`      | Soft-delete a task; hidden from every view, row retained (owner only) |
 
 - **`GET /api/tasks` is paginated and searchable.** Query parameters:
-    - `cursor` (optional) — opaque cursor for the next page; omitted for the first page.
-    - `limit` (optional) — page size, with a sensible default and a server-enforced maximum.
-    - `search` (optional) — case-insensitive match on title and description, applied before
+    - `cursor` (optional) - opaque cursor for the next page; omitted for the first page.
+    - `limit` (optional) - page size, with a sensible default and a server-enforced maximum.
+    - `search` (optional) - case-insensitive match on title and description, applied before
       pagination so it spans all of the user's tasks.
 
     The response returns the page of tasks plus a `nextCursor` (null when there are no more
     results). Pagination is **keyset (cursor) based**, ordered by a stable key
     (`CreatedAt`, `Id`). Keyset is chosen over offset/limit so that creating or deleting tasks
-    mid-scroll does not cause rows to be skipped or duplicated — important because this app
+    mid-scroll does not cause rows to be skipped or duplicated - important because this app
     expects frequent concurrent mutation.
 
 - Validation runs server-side (empty title rejected, invalid due date rejected) and returns
@@ -137,13 +141,13 @@ All task endpoints are owner-scoped and require a valid JWT.
 
 ## Features
 
-Each feature is complete end to end — UI action through to database and back to a visible UI
+Each feature is complete end to end - UI action through to database and back to a visible UI
 update.
 
 1. **Register and log in.** Forms for both; on success the JWT is stored (localStorage) and
    attached to subsequent requests; the user lands on their task list. Logout clears the
    session.
-2. **View tasks (paginated).** The list shows the logged-in user's tasks only — title,
+2. **View tasks (paginated).** The list shows the logged-in user's tasks only - title,
    description, due date (rendered in the user's local timezone), and completion state.
    Reads are paginated; the user scrolls to load further pages (infinite scroll / "load
    more"), so the list scales to a large number of tasks.
@@ -153,20 +157,22 @@ update.
 4. **Create a task.** Type a title into the blank "Add a task" row at the top of the stack and
    press Enter; the task appears immediately. Empty titles are ignored; the server still
    validates and surfaces errors.
-5. **Edit a task.** Each field is edited in place — click the title, note, or due date (or the
+5. **Edit a task.** Each field is edited in place - click the title, note, or due date (or the
    faint "+ Add note" / "+ Add due date" prompts) to edit just that field. Enter or blur saves;
    Escape cancels. No separate edit form.
 6. **Complete / reopen a task.** Checking a task completes it and moves it to the completed
    section; reopening it from there returns it to the active list.
-7. **Delete a task.** A trash icon soft-deletes the task into the completed section (no
-   confirmation dialog); it can be restored from there by marking it not completed.
+7. **Delete a task.** A trash icon deletes the task (no confirmation dialog). It is a soft delete -
+   the row is retained server-side but filtered out of every view, so it disappears from the list
+   and never shows up in the completed section. (Distinct from completing, which is reversible from
+   the completed section.)
 8. **Immediate, optimistic UI.** Every create, edit, complete, and delete updates the list
    immediately without a page refresh; the UI never blocks on the network. Each mutation fires
    its own request:
     - **Temp IDs:** a newly created task is rendered immediately with a client-side temporary id;
       when the server responds, the temp row is reconciled to the canonical server task.
     - **Overlay on paged data:** because the server owns which tasks appear on each page, optimistic
-      changes are applied as an overlay on the loaded pages — a pending edit renders right away and
+      changes are applied as an overlay on the loaded pages - a pending edit renders right away and
       a pending delete hides the row.
     - **Rollback on failure:** if a request fails, the affected item rolls back to its last
       server-confirmed state and a visible error is surfaced; the UI converges to a consistent state.
@@ -176,7 +182,7 @@ update.
     overdue). It collapses to nothing when empty. Each item has a snooze control that hides it
     from the rollup; snoozes persist in `localStorage`. The rollup refetches (debounced) when the
     active list changes.
-11. **Completion chime.** Completing a task plays a short Web Audio chime — a small delight, and
+11. **Completion chime.** Completing a task plays a short Web Audio chime - a small delight, and
     a no-op where audio is unavailable.
 
 ## Validation Rules

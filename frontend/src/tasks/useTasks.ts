@@ -85,8 +85,8 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
     });
   }, []);
 
-  // Changing the search term resets pagination. Null the cursor synchronously — not just when the
-  // debounced refetch lands — so Load more is disabled in the meantime and can't send a cursor
+  // Changing the search term resets pagination. Null the cursor synchronously - not just when the
+  // debounced refetch lands - so Load more is disabled in the meantime and can't send a cursor
   // from the previous search.
   const setSearch = useCallback((term: string) => {
     setSearchState(term);
@@ -100,7 +100,10 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       setStatus("loading");
       setError(null);
       try {
-        const page = await client.listTasks({ search, limit: PAGE_SIZE });
+        const page = await client.listTasks({
+          search,
+          limit: PAGE_SIZE,
+        });
         if (id !== requestId.current) return;
         setTasks(page.items);
         setNextCursor(page.nextCursor);
@@ -118,7 +121,11 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const page = await client.listTasks({ cursor: nextCursor, search, limit: PAGE_SIZE });
+      const page = await client.listTasks({
+        cursor: nextCursor,
+        search,
+        limit: PAGE_SIZE,
+      });
       // Drop ids already present so an optimistically re-inserted task can't show up twice when
       // its real page is loaded.
       setTasks((prev) => [...prev, ...page.items.filter((p) => !prev.some((t) => t.id === p.id))]);
@@ -229,8 +236,10 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       setPending(id, true);
       try {
         await client.deleteTask(id);
-        // Soft-delete: the task now lives in the completed section.
-        onCompleted?.();
+        // Soft delete on the server, but the row is filtered out of every view (including
+        // the completed section), so the client treats it as gone: drop it from the active
+        // list and leave the completed section untouched - a deleted task is not "completed".
+        // Still refresh the due-soon rollup in case the deleted task was due soon.
         onMutated?.();
       } catch (err) {
         // No form backs delete, so fully handle the failure: restore the row at its original
@@ -241,7 +250,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(id, false);
       }
     },
-    [client, setPending, onCompleted, onMutated, supersedeInFlightLoad],
+    [client, setPending, onMutated, supersedeInFlightLoad],
   );
 
   // Surface a reopened task at the top of the active list (deduped). It carries the server's

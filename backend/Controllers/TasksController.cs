@@ -17,7 +17,7 @@ public class TasksController : ControllerBase
     private const int MaxLimit = 100;
 
     // Completed tasks fall out of the completed section once they are this old. They are not
-    // physically deleted here — a future purge job can reclaim them; this just bounds the view.
+    // physically deleted here - a future purge job can reclaim them; this just bounds the view.
     private const int CompletedTtlDays = 30;
 
     // The due-soon rollup surfaces tasks due within this window (and anything overdue).
@@ -36,7 +36,7 @@ public class TasksController : ControllerBase
     {
         var pageSize = Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit);
 
-        var where = new List<string> { "UserId = @userId", "CompletedAt IS NULL" };
+        var where = new List<string> { "UserId = @userId", "CompletedAt IS NULL", "DeletedAt IS NULL" };
         var args = new DynamicParameters();
         args.Add("userId", UserId);
 
@@ -83,7 +83,7 @@ public class TasksController : ControllerBase
         return Ok(new PagedResponse<TaskResponse>(items, nextCursor));
     }
 
-    // The completed/removed section: most-recently-completed first, capped to a rolling TTL.
+    // The completed section: most-recently-completed first, capped to a rolling TTL.
     [HttpGet("completed")]
     public async Task<ActionResult<PagedResponse<TaskResponse>>> ListCompleted(
         [FromQuery] string? cursor,
@@ -96,6 +96,8 @@ public class TasksController : ControllerBase
             "UserId = @userId",
             "CompletedAt IS NOT NULL",
             "CompletedAt > @ttl",
+            // A soft-deleted task is gone, not completed - keep it out of the completed section.
+            "DeletedAt IS NULL",
         };
         var args = new DynamicParameters();
         args.Add("userId", UserId);
@@ -136,7 +138,7 @@ public class TasksController : ControllerBase
     }
 
     // Active tasks due within the next DueSoonDays (and anything already overdue), soonest first.
-    // Small and unpaginated — it backs a collapsible "due soon" rollup, not a scrollable list.
+    // Small and unpaginated - it backs a collapsible "due soon" rollup, not a scrollable list.
     [HttpGet("due-soon")]
     public async Task<ActionResult<IReadOnlyList<TaskResponse>>> ListDueSoon()
     {
@@ -150,6 +152,7 @@ public class TasksController : ControllerBase
             FROM Tasks
             WHERE UserId = @userId
               AND CompletedAt IS NULL
+              AND DeletedAt IS NULL
               AND DueDateUtc IS NOT NULL
               AND DueDateUtc <= @threshold
             ORDER BY DueDateUtc ASC, Id ASC
@@ -218,17 +221,19 @@ public class TasksController : ControllerBase
         return Ok(TaskResponse.From(task));
     }
 
-    // Delete is a soft-delete: the task moves to the completed section (where it can be reopened)
-    // and ages out via the same TTL. COALESCE preserves an existing completion time so deleting
-    // an already-completed task does not reset its TTL clock.
+    // Delete is a soft delete: it stamps DeletedAt rather than removing the row, so the record is
+    // retained for a future cleanup job while being filtered out of every read query (so it never
+    // resurfaces - not even in the completed section). Scoped to the owner, so a non-owner matches
+    // no rows and gets the same 404 as a missing task. The DeletedAt IS NULL guard also makes a
+    // repeat delete a no-op that 404s, matching the old hard-delete's behavior on a gone row.
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var now = DateTime.UtcNow;
         using var conn = _db.Create();
         var affected = await conn.ExecuteAsync(
-            @"UPDATE Tasks SET CompletedAt = COALESCE(CompletedAt, @now), UpdatedAt = @now
-              WHERE Id = @id AND UserId = @userId",
+            "UPDATE Tasks SET DeletedAt = @now, UpdatedAt = @now " +
+            "WHERE Id = @id AND UserId = @userId AND DeletedAt IS NULL",
             new { now, id, userId = UserId });
 
         return affected == 0 ? NotFound() : NoContent();
@@ -243,7 +248,7 @@ public class TasksController : ControllerBase
         using var conn = _db.Create();
         return await conn.QuerySingleOrDefaultAsync<TaskItem>(
             @"SELECT Id, UserId, Title, Description, DueDateUtc, CompletedAt, CreatedAt, UpdatedAt
-              FROM Tasks WHERE Id = @id AND UserId = @userId",
+              FROM Tasks WHERE Id = @id AND UserId = @userId AND DeletedAt IS NULL",
             new { id, userId = UserId });
     }
 }

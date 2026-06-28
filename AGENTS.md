@@ -13,7 +13,7 @@ Make small, well scoped changes as distinct jj changes with adequate description
    inferred from the code, file, tests, and surrounding docs. Prefer clear names
    and structure over narration.
 2. **Tests are meaningful and concise.** Cover the most important main paths and
-   edge cases first — not every line. If you see uncovered cases that you think
+   edge cases first - not every line. If you see uncovered cases that you think
    matter, ask before adding them. (See [Tests](#tests) for the highest-risk
    areas here.)
 3. **Stay on task.** Accomplish the requested task first, then raise improvements
@@ -31,9 +31,9 @@ Make small, well scoped changes as distinct jj changes with adequate description
 Not comprehensive coverage. Ask: _what would I be most nervous about if someone
 else changed this code?_ For this app the two highest-risk areas are almost always:
 
-- **Ownership enforcement** — can User A access User B's data? Test this
+- **Ownership enforcement** - can User A access User B's data? Test this
   explicitly.
-- **Validation** — does the app correctly reject bad input (empty titles, missing
+- **Validation** - does the app correctly reject bad input (empty titles, missing
   due dates, invalid values)?
 
 A few real tests on these beats twenty tests that a button renders. No tests, or a

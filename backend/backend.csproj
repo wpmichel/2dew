@@ -7,10 +7,7 @@
     <!-- Emit the OpenAPI document on build so the frontend can generate types from it. -->
     <OpenApiGenerateDocumentsOnBuild>true</OpenApiGenerateDocumentsOnBuild>
     <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
-    <!-- Surface .editorconfig IDE rules (e.g. IDE0005 unused usings) on `dotnet build`. -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- IDE0005 is only reported at build time when a doc file is generated; CS1591 (missing
-         XML comment) is noise for this app, so suppress it. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>

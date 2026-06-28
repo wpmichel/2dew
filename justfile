@@ -17,12 +17,27 @@ backend:
 frontend:
     cd frontend && pnpm dev
 
-# Run backend and frontend together, opening the app in your browser once Vite is ready.
+# Run backend (dotnet watch hot reload) and frontend (Vite HMR) together,
+# opening the app in your browser once Vite is ready. Ctrl-C stops both.
 dev:
     #!/usr/bin/env sh
-    (cd backend && dotnet run) &
+    trap 'kill 0' EXIT INT TERM
+    (cd backend && dotnet watch run) &
     (cd frontend && pnpm dev --open) &
     wait
+
+# Stop any dev servers still bound to the dev ports (e.g. after a hard exit or closed terminal).
+dev-down:
+    #!/usr/bin/env sh
+    for port in 5088 5173; do
+        pids=$(lsof -nP -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null)
+        if [ -n "$pids" ]; then
+            echo "stopping :$port (pids: $(echo "$pids" | tr '\n' ' '))"
+            kill $pids 2>/dev/null
+        else
+            echo ":$port already free"
+        fi
+    done
 
 # Regenerate the frontend API types from the backend's OpenAPI document.
 gen-api:
@@ -37,10 +52,12 @@ test:
 # Check backend code style without modifying files (fails on any violation).
 lint-backend:
     cd backend && dotnet format --verify-no-changes
+    cd backend.Tests && dotnet format --verify-no-changes
 
 # Auto-fix backend code style (unused usings, formatting, etc.).
 fix-backend:
     cd backend && dotnet format
+    cd backend.Tests && dotnet format
 
 # Seed a demo user (seed@example.com / password123) with active + completed tasks so the
 # pagination/scroll behavior is observable. The API must be running (`just backend` or `just dev`).

@@ -257,6 +257,23 @@ textarea[aria-invalid="true"] {
   flex-direction: column;
   gap: 0.5rem;
 }
+/* A bounded, internally-scrolling list: the search box and quick-add row above it stay put while
+   the rows scroll, and reaching the bottom auto-loads the next page (see useInfiniteScroll). */
+.scroll-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.25rem; /* keep rows clear of the scrollbar */
+}
+.completed-list.scroll-list {
+  max-height: 40vh; /* secondary list, a bit shorter */
+}
+/* Non-interactive marker observed at the end of the list; min-height keeps it observable. */
+.scroll-sentinel {
+  min-height: 1px;
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem 0;
+}
 .task-row {
   display: flex;
   align-items: flex-start;

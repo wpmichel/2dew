@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { TaskResponse, UpdateTaskRequest } from "../api/types";
-import { formatDueDate, fromLocalInputValue, toLocalInputValue } from "../util/datetime";
+import {
+  formatDueDate,
+  fromLocalInputValue,
+  nowLocalInputValue,
+  toLocalInputValue,
+} from "../util/datetime";
 
 type EditField = "title" | "description" | "due";
 
@@ -13,8 +18,6 @@ interface TaskRowProps {
   onDelete: (id: string) => void;
 }
 
-// A task row in the MS To Do mold: the title, note, and due date are each edited in place by
-// clicking them, and the only button is a trash icon. There is no separate edit mode or form.
 export function TaskRow({ task, pending, onToggle, onUpdate, onDelete }: TaskRowProps) {
   const [editing, setEditing] = useState<EditField | null>(null);
   const [draft, setDraft] = useState("");
@@ -28,7 +31,8 @@ export function TaskRow({ task, pending, onToggle, onUpdate, onDelete }: TaskRow
         ? task.title
         : field === "description"
           ? (task.description ?? "")
-          : toLocalInputValue(task.dueDateUtc),
+          : // Default the picker to today when no due date is set yet.
+            toLocalInputValue(task.dueDateUtc) || nowLocalInputValue(),
     );
     setEditing(field);
   }

@@ -10,8 +10,7 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
-# The warning this project most wants surfaced: unnecessary using directives.
-dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0005.severity = error
 
 # Conventions the codebase already follows.
 csharp_style_namespace_declarations = file_scoped:warning

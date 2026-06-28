@@ -2,8 +2,7 @@ using Dapper;
 
 namespace Backend.Data;
 
-// Idempotent schema bootstrap run once at startup, replacing ORM migrations. A fresh clone
-// gets its schema with no manual steps, and the file-backed DB persists across restarts.
+// Idempotent schema bootstrap run at startup
 public static class DatabaseInitializer
 {
     public const int MaxTitleLength = 200;
@@ -23,8 +22,10 @@ CREATE TABLE IF NOT EXISTS Tasks (
     Title       TEXT NOT NULL,
     Description TEXT NULL,
     DueDateUtc  TEXT NULL,
-    -- null = active; non-null = completed/removed. See TaskItem for the rationale.
+    -- null = active; non-null = completed. 
     CompletedAt TEXT NULL,
+    -- null = live; non-null = soft-deleted. 
+    DeletedAt   TEXT NULL,
     CreatedAt   TEXT NOT NULL,
     UpdatedAt   TEXT NOT NULL,
     FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
@@ -33,6 +34,8 @@ CREATE TABLE IF NOT EXISTS Tasks (
 CREATE INDEX IF NOT EXISTS IX_Tasks_UserId_CreatedAt_Id ON Tasks(UserId, CreatedAt, Id);
 -- Backs the completed section's keyset pagination and the active/due-soon CompletedAt filter.
 CREATE INDEX IF NOT EXISTS IX_Tasks_UserId_CompletedAt ON Tasks(UserId, CompletedAt, Id);
+-- Backs soft-delete filter 
+CREATE INDEX IF NOT EXISTS IX_Tasks_UserId_DeletedAt ON Tasks(UserId, DeletedAt, Id);
 ";
 
     public static void Initialize(ConnectionFactory factory)

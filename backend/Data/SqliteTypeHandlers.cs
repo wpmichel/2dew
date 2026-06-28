@@ -4,8 +4,7 @@ using Dapper;
 namespace Backend.Data;
 
 // SQLite stores Guids as TEXT with no Guid affinity, so Dapper needs an explicit handler to
-// read a column back into a Guid. (DateTimes are handled natively by Microsoft.Data.Sqlite as
-// TEXT; we tag them UTC at the API boundary in TaskResponse.From.)
+// read a column back into a Guid.
 public static class SqliteTypeHandlers
 {
     public static void Register()

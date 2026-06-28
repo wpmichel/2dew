@@ -4,9 +4,8 @@ using Backend.Dtos;
 
 namespace Backend.Tests;
 
-// Liveliness: completing or deleting a task moves it to the completed section rather than
-// destroying it, it can be reopened back into the active list, and the due-soon rollup and
-// completed section stay owner-scoped.
+// Liveliness: completing a task moves it to the completed section, deleting a task hides it from every view, and the due-soon
+// rollup and completed section stay owner-scoped.
 public class LivelinessTests : IClassFixture<ApiFactory>
 {
     private readonly ApiFactory _factory;
@@ -31,7 +30,7 @@ public class LivelinessTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Deleting_a_task_soft_deletes_it_into_the_completed_section()
+    public async Task Deleting_a_task_hides_it_from_every_view()
     {
         var client = await _factory.CreateUserClientAsync("live-delete@example.com");
         var task = await Create(client, "Cancel the order");
@@ -39,11 +38,21 @@ public class LivelinessTests : IClassFixture<ApiFactory>
         var delete = await client.DeleteAsync($"/api/tasks/{task.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
 
+        // Gone from the active list...
         var active = await client.GetFromJsonAsync<PagedResponse<TaskResponse>>("/api/tasks");
         Assert.DoesNotContain(active!.Items, t => t.Id == task.Id);
 
+        // ...not in the completed section either...
         var completed = await client.GetFromJsonAsync<PagedResponse<TaskResponse>>("/api/tasks/completed");
-        Assert.Contains(completed!.Items, t => t.Id == task.Id);
+        Assert.DoesNotContain(completed!.Items, t => t.Id == task.Id);
+
+        // ...and a direct fetch 404s.
+        var get = await client.GetAsync($"/api/tasks/{task.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, get.StatusCode);
+
+        // A repeat delete matches no live row and 404s, same as deleting a missing task.
+        var again = await client.DeleteAsync($"/api/tasks/{task.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 // A short, delightful two-note chime played when a task is completed. Best-effort: if the Web
-// Audio API is unavailable (e.g. in tests) it silently does nothing — audio is never a failure
+// Audio API is unavailable (e.g. in tests) it silently does nothing - audio is never a failure
 // path. A single AudioContext is reused so repeated completions don't exhaust the browser's
 // per-page limit.
 

@@ -13,6 +13,12 @@ export function toLocalInputValue(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Current local date/time as a <input type="datetime-local"> value. Used as the default when
+// a due date is first added, so the picker opens on today rather than a blank field.
+export function nowLocalInputValue(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
 // Local datetime-local value -> UTC ISO for the API (null when empty).
 export function fromLocalInputValue(value: string): string | null {
   if (!value) return null;

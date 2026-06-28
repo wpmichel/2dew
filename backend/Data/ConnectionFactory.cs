@@ -3,8 +3,6 @@ using Microsoft.Data.Sqlite;
 
 namespace Backend.Data;
 
-// Hands out open SQLite connections. The only data-access "layer" in the app — controllers
-// open a connection and run hand-written SQL via Dapper directly (no repository indirection).
 public class ConnectionFactory
 {
     private readonly string _connectionString;

@@ -31,7 +31,6 @@ public class OwnershipTests : IClassFixture<ApiFactory>
         var delete = await bob.DeleteAsync($"/api/tasks/{id}");
         Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
 
-        // And the task is untouched: Alice still owns the original, unmodified.
         var stillThere = await alice.GetFromJsonAsync<TaskResponse>($"/api/tasks/{id}");
         Assert.Equal("Alice's secret", stillThere!.Title);
         Assert.False(stillThere.IsCompleted);

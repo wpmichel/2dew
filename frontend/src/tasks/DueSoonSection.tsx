@@ -6,7 +6,7 @@ interface DueSoonSectionProps {
 }
 
 // A small rollup of tasks due within the next couple of days (and anything overdue). It is
-// invisible whenever nothing qualifies — including while the first fetch is in flight — so it
+// invisible whenever nothing qualifies - including while the first fetch is in flight - so it
 // never adds empty chrome. Snoozing a task hides it here without touching the main list.
 export function DueSoonSection({ dueSoon }: DueSoonSectionProps) {
   if (dueSoon.tasks.length === 0) return null;

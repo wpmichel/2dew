@@ -12,7 +12,6 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5088";
 const TOKEN_KEY = "todo.token";
 
 // Thrown for any non-2xx response. `fieldErrors` carries server-side validation messages
-// (from ASP.NET ValidationProblemDetails) so forms can show them inline.
 export class ApiError extends Error {
   readonly status: number;
   readonly fieldErrors: Record<string, string[]>;

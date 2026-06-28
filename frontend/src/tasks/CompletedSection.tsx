@@ -1,15 +1,26 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { formatRelativeTime } from "../util/datetime";
 import type { UseCompletedTasks } from "./useCompletedTasks";
+import { useInfiniteScroll } from "./useInfiniteScroll";
 
 interface CompletedSectionProps {
   completed: UseCompletedTasks;
 }
 
-// A collapsible roll-up of completed and removed tasks. Hidden entirely when there is nothing
+// A collapsible roll-up of completed tasks. Hidden entirely when there is nothing
 // completed, so it never adds empty chrome to the page.
 export function CompletedSection({ completed }: CompletedSectionProps) {
   const [open, setOpen] = useState(false);
+
+  // Bounded scroll area that auto-loads the next page; the observer only exists while the section
+  // is open and there are more pages (the sentinel renders only then).
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const sentinelRef = useInfiniteScroll({
+    onLoadMore: completed.loadMore,
+    hasMore: completed.hasMore,
+    loading: completed.loadingMore,
+    root: listRef,
+  });
 
   if (completed.tasks.length === 0 && !completed.error) return null;
 
@@ -40,7 +51,7 @@ export function CompletedSection({ completed }: CompletedSectionProps) {
           </button>
 
           {open && (
-            <ul className="task-list completed-list">
+            <ul className="task-list completed-list scroll-list" ref={listRef}>
               {completed.tasks.map((task) => (
                 <li key={task.id} className="task-row completed">
                   <div className="task-main">
@@ -65,15 +76,8 @@ export function CompletedSection({ completed }: CompletedSectionProps) {
               ))}
 
               {completed.hasMore && (
-                <li className="load-more">
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={completed.loadingMore}
-                    onClick={completed.loadMore}
-                  >
-                    {completed.loadingMore ? "Loading…" : "Load more"}
-                  </button>
+                <li className="scroll-sentinel" ref={sentinelRef} aria-hidden="true">
+                  {completed.loadingMore && <span className="muted">Loading more…</span>}
                 </li>
               )}
             </ul>

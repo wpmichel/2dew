@@ -5,7 +5,6 @@ using Backend.Dtos;
 
 namespace Backend.Tests;
 
-// The second highest-risk area: bad input must be rejected, and protected routes must require auth.
 public class ValidationTests : IClassFixture<ApiFactory>
 {
     private readonly ApiFactory _factory;

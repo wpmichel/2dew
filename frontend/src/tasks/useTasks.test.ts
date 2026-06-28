@@ -227,6 +227,24 @@ describe("useTasks optimistic behavior", () => {
     expect(result.current.error).toBe("Delete failed");
   });
 
+  it("does not notify the completed section after a delete", async () => {
+    const client = fakeApi([task("a")]);
+    const onCompleted = vi.fn();
+    const onMutated = vi.fn();
+    const hook = renderHook(() => useTasks(client, { onCompleted, onMutated }));
+    await waitFor(() => expect(hook.result.current.status).toBe("ready"));
+
+    await act(async () => {
+      await hook.result.current.deleteTask("a");
+    });
+
+    // A deleted task is hidden from every view (it is not "completed"), so the completed section
+    // must not refresh; the due-soon rollup still refreshes in case the task was due soon.
+    expect(onCompleted).not.toHaveBeenCalled();
+    expect(onMutated).toHaveBeenCalledOnce();
+    expect(hook.result.current.tasks).toHaveLength(0);
+  });
+
   it("surfaces an error and rethrows when a create fails", async () => {
     const client = fakeApi([]);
     const created = deferred<TaskResponse>();
