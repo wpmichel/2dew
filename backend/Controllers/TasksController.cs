@@ -16,6 +16,14 @@ public class TasksController : ControllerBase
     private const int DefaultLimit = 20;
     private const int MaxLimit = 100;
 
+    // Completed tasks fall out of the completed section once they are this old. They are not
+    // physically deleted here — a future purge job can reclaim them; this just bounds the view.
+    private const int CompletedTtlDays = 30;
+
+    // The due-soon rollup surfaces tasks due within this window (and anything overdue).
+    private const int DueSoonDays = 2;
+    private const int DueSoonLimit = 50;
+
     private readonly ConnectionFactory _db;
 
     public TasksController(ConnectionFactory db) => _db = db;
@@ -28,7 +36,7 @@ public class TasksController : ControllerBase
     {
         var pageSize = Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit);
 
-        var where = new List<string> { "UserId = @userId" };
+        var where = new List<string> { "UserId = @userId", "CompletedAt IS NULL" };
         var args = new DynamicParameters();
         args.Add("userId", UserId);
 
@@ -54,7 +62,7 @@ public class TasksController : ControllerBase
         // Fetch one extra row to know whether a further page exists.
         args.Add("take", pageSize + 1);
         var sql = $@"
-            SELECT Id, UserId, Title, Description, DueDateUtc, IsCompleted, CreatedAt, UpdatedAt
+            SELECT Id, UserId, Title, Description, DueDateUtc, CompletedAt, CreatedAt, UpdatedAt
             FROM Tasks
             WHERE {string.Join(" AND ", where)}
             ORDER BY CreatedAt DESC, Id DESC
@@ -75,6 +83,84 @@ public class TasksController : ControllerBase
         return Ok(new PagedResponse<TaskResponse>(items, nextCursor));
     }
 
+    // The completed/removed section: most-recently-completed first, capped to a rolling TTL.
+    [HttpGet("completed")]
+    public async Task<ActionResult<PagedResponse<TaskResponse>>> ListCompleted(
+        [FromQuery] string? cursor,
+        [FromQuery] int? limit)
+    {
+        var pageSize = Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit);
+
+        var where = new List<string>
+        {
+            "UserId = @userId",
+            "CompletedAt IS NOT NULL",
+            "CompletedAt > @ttl",
+        };
+        var args = new DynamicParameters();
+        args.Add("userId", UserId);
+        args.Add("ttl", DateTime.UtcNow.AddDays(-CompletedTtlDays));
+
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            if (!Cursor.TryDecode(cursor, out var c))
+                return BadRequest(new ProblemDetails { Title = "Invalid cursor." });
+
+            // Same keyset shape as the active list, but the cursor's timestamp carries
+            // CompletedAt here (it is opaque to the client either way).
+            where.Add("(CompletedAt < @cursorTs OR (CompletedAt = @cursorTs AND Id < @cursorId))");
+            args.Add("cursorTs", c.CreatedAt);
+            args.Add("cursorId", c.Id);
+        }
+
+        args.Add("take", pageSize + 1);
+        var sql = $@"
+            SELECT Id, UserId, Title, Description, DueDateUtc, CompletedAt, CreatedAt, UpdatedAt
+            FROM Tasks
+            WHERE {string.Join(" AND ", where)}
+            ORDER BY CompletedAt DESC, Id DESC
+            LIMIT @take";
+
+        using var conn = _db.Create();
+        var rows = (await conn.QueryAsync<TaskItem>(sql, args)).ToList();
+
+        string? nextCursor = null;
+        if (rows.Count > pageSize)
+        {
+            var last = rows[pageSize - 1];
+            nextCursor = new Cursor(last.CompletedAt!.Value, last.Id).Encode();
+            rows.RemoveAt(rows.Count - 1);
+        }
+
+        var items = rows.Select(TaskResponse.From).ToList();
+        return Ok(new PagedResponse<TaskResponse>(items, nextCursor));
+    }
+
+    // Active tasks due within the next DueSoonDays (and anything already overdue), soonest first.
+    // Small and unpaginated — it backs a collapsible "due soon" rollup, not a scrollable list.
+    [HttpGet("due-soon")]
+    public async Task<ActionResult<IReadOnlyList<TaskResponse>>> ListDueSoon()
+    {
+        var args = new DynamicParameters();
+        args.Add("userId", UserId);
+        args.Add("threshold", DateTime.UtcNow.AddDays(DueSoonDays));
+        args.Add("take", DueSoonLimit);
+
+        const string sql = @"
+            SELECT Id, UserId, Title, Description, DueDateUtc, CompletedAt, CreatedAt, UpdatedAt
+            FROM Tasks
+            WHERE UserId = @userId
+              AND CompletedAt IS NULL
+              AND DueDateUtc IS NOT NULL
+              AND DueDateUtc <= @threshold
+            ORDER BY DueDateUtc ASC, Id ASC
+            LIMIT @take";
+
+        using var conn = _db.Create();
+        var rows = await conn.QueryAsync<TaskItem>(sql, args);
+        return Ok(rows.Select(TaskResponse.From).ToList());
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<TaskResponse>> Get(Guid id)
     {
@@ -93,15 +179,15 @@ public class TasksController : ControllerBase
             Title = request.Title.Trim(),
             Description = request.Description,
             DueDateUtc = request.DueDateUtc?.ToUniversalTime(),
-            IsCompleted = false,
+            CompletedAt = null,
             CreatedAt = now,
             UpdatedAt = now,
         };
 
         using var conn = _db.Create();
         await conn.ExecuteAsync(
-            @"INSERT INTO Tasks (Id, UserId, Title, Description, DueDateUtc, IsCompleted, CreatedAt, UpdatedAt)
-              VALUES (@Id, @UserId, @Title, @Description, @DueDateUtc, @IsCompleted, @CreatedAt, @UpdatedAt)",
+            @"INSERT INTO Tasks (Id, UserId, Title, Description, DueDateUtc, CompletedAt, CreatedAt, UpdatedAt)
+              VALUES (@Id, @UserId, @Title, @Description, @DueDateUtc, @CompletedAt, @CreatedAt, @UpdatedAt)",
             task);
 
         return CreatedAtAction(nameof(Get), new { id = task.Id }, TaskResponse.From(task));
@@ -113,30 +199,38 @@ public class TasksController : ControllerBase
         var task = await FindOwned(id);
         if (task is null) return NotFound();
 
+        var now = DateTime.UtcNow;
         task.Title = request.Title.Trim();
         task.Description = request.Description;
         task.DueDateUtc = request.DueDateUtc?.ToUniversalTime();
-        task.IsCompleted = request.IsCompleted;
-        task.UpdatedAt = DateTime.UtcNow;
+        // Map the request's boolean onto the timestamp: keep the original completion time when
+        // it was already complete, stamp now when newly completed, clear it when reopened.
+        task.CompletedAt = request.IsCompleted ? task.CompletedAt ?? now : null;
+        task.UpdatedAt = now;
 
         using var conn = _db.Create();
         await conn.ExecuteAsync(
             @"UPDATE Tasks
               SET Title = @Title, Description = @Description, DueDateUtc = @DueDateUtc,
-                  IsCompleted = @IsCompleted, UpdatedAt = @UpdatedAt
+                  CompletedAt = @CompletedAt, UpdatedAt = @UpdatedAt
               WHERE Id = @Id AND UserId = @UserId",
             task);
 
         return Ok(TaskResponse.From(task));
     }
 
+    // Delete is a soft-delete: the task moves to the completed section (where it can be reopened)
+    // and ages out via the same TTL. COALESCE preserves an existing completion time so deleting
+    // an already-completed task does not reset its TTL clock.
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
+        var now = DateTime.UtcNow;
         using var conn = _db.Create();
         var affected = await conn.ExecuteAsync(
-            "DELETE FROM Tasks WHERE Id = @id AND UserId = @userId",
-            new { id, userId = UserId });
+            @"UPDATE Tasks SET CompletedAt = COALESCE(CompletedAt, @now), UpdatedAt = @now
+              WHERE Id = @id AND UserId = @userId",
+            new { now, id, userId = UserId });
 
         return affected == 0 ? NotFound() : NoContent();
     }
@@ -149,7 +243,7 @@ public class TasksController : ControllerBase
     {
         using var conn = _db.Create();
         return await conn.QuerySingleOrDefaultAsync<TaskItem>(
-            @"SELECT Id, UserId, Title, Description, DueDateUtc, IsCompleted, CreatedAt, UpdatedAt
+            @"SELECT Id, UserId, Title, Description, DueDateUtc, CompletedAt, CreatedAt, UpdatedAt
               FROM Tasks WHERE Id = @id AND UserId = @userId",
             new { id, userId = UserId });
     }

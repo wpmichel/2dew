@@ -23,13 +23,16 @@ CREATE TABLE IF NOT EXISTS Tasks (
     Title       TEXT NOT NULL,
     Description TEXT NULL,
     DueDateUtc  TEXT NULL,
-    IsCompleted INTEGER NOT NULL DEFAULT 0,
+    -- null = active; non-null = completed/removed. See TaskItem for the rationale.
+    CompletedAt TEXT NULL,
     CreatedAt   TEXT NOT NULL,
     UpdatedAt   TEXT NOT NULL,
     FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
--- Backs keyset pagination ordered by (CreatedAt, Id) within a user.
+-- Backs keyset pagination of the active list, ordered by (CreatedAt, Id) within a user.
 CREATE INDEX IF NOT EXISTS IX_Tasks_UserId_CreatedAt_Id ON Tasks(UserId, CreatedAt, Id);
+-- Backs the completed section's keyset pagination and the active/due-soon CompletedAt filter.
+CREATE INDEX IF NOT EXISTS IX_Tasks_UserId_CompletedAt ON Tasks(UserId, CompletedAt, Id);
 ";
 
     public static void Initialize(ConnectionFactory factory)

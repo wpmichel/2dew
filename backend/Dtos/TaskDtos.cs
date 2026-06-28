@@ -31,13 +31,17 @@ public record TaskResponse(
     string? Description,
     DateTime? DueDateUtc,
     bool IsCompleted,
+    DateTime? CompletedAt,
     DateTime CreatedAt,
     DateTime UpdatedAt)
 {
     // Values are stored UTC but read back from SQLite as Kind=Unspecified; tag them so they
     // serialize with a trailing 'Z' and the frontend renders the correct local time.
+    // IsCompleted is derived from CompletedAt; both are exposed so the client can show a
+    // completion timestamp without recomputing the flag.
     public static TaskResponse From(TaskItem t) =>
-        new(t.Id, t.Title, t.Description, AsUtc(t.DueDateUtc), t.IsCompleted, AsUtc(t.CreatedAt), AsUtc(t.UpdatedAt));
+        new(t.Id, t.Title, t.Description, AsUtc(t.DueDateUtc), t.IsCompleted, AsUtc(t.CompletedAt),
+            AsUtc(t.CreatedAt), AsUtc(t.UpdatedAt));
 
     private static DateTime AsUtc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc);
     private static DateTime? AsUtc(DateTime? value) =>

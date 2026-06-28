@@ -85,9 +85,13 @@ README.md           Setup, what was built, trade-offs, future work
 | Title       | string    | Required, non-empty, max length enforced |
 | Description | string?   | Optional                                 |
 | DueDateUtc  | DateTime? | Optional; stored in UTC                  |
-| IsCompleted | bool      | Defaults to false                        |
+| CompletedAt | DateTime? | UTC; null = active, non-null = completed/removed. `IsCompleted` is derived from it |
 | CreatedAt   | DateTime  | UTC                                      |
 | UpdatedAt   | DateTime  | UTC; set on every modification           |
+
+A task has no hard-delete: completing it (checkbox) and removing it (trash icon) both set
+`CompletedAt`. Completed tasks surface in a separate "completed" section where they can be
+reopened (clearing `CompletedAt`), and age out of that view after a fixed TTL (30 days).
 
 ## Authentication & Ownership
 
@@ -108,11 +112,13 @@ All task endpoints are owner-scoped and require a valid JWT.
 | ------ | -------------------- | ---------------------------------------------------- |
 | POST   | `/api/auth/register` | Create account, return JWT                           |
 | POST   | `/api/auth/login`    | Authenticate, return JWT                             |
-| GET    | `/api/tasks`         | List the caller's tasks (paginated; optional search) |
-| POST   | `/api/tasks`         | Create a task                                        |
-| GET    | `/api/tasks/{id}`    | Get one task (owner only)                            |
-| PUT    | `/api/tasks/{id}`    | Update a task (owner only)                           |
-| DELETE | `/api/tasks/{id}`    | Delete a task (owner only)                           |
+| GET    | `/api/tasks`           | List the caller's active tasks (paginated; optional search) |
+| GET    | `/api/tasks/completed` | List the caller's completed/removed tasks (paginated, TTL-bounded) |
+| GET    | `/api/tasks/due-soon`  | List active tasks due within 2 days or overdue (unpaginated, ≤50) |
+| POST   | `/api/tasks`           | Create a task                                        |
+| GET    | `/api/tasks/{id}`      | Get one task (owner only)                            |
+| PUT    | `/api/tasks/{id}`      | Update a task; `isCompleted` sets/clears `CompletedAt` (owner only) |
+| DELETE | `/api/tasks/{id}`      | Soft-delete a task into the completed section (owner only) |
 
 - **`GET /api/tasks` is paginated and searchable.** Query parameters:
     - `cursor` (optional) — opaque cursor for the next page; omitted for the first page.
