@@ -39,14 +39,10 @@ A deliberately flat structure matched to a single-entity CRUD app.
 - **Database:** SQLite, file-backed (e.g. `app.db`) via Dapper + Microsoft.Data.Sqlite, so data
   survives restarts. The schema is created at startup with idempotent `CREATE TABLE IF NOT EXISTS`
   so a fresh clone runs with no manual DB steps.
-- **Containerization:** a multi-stage `Dockerfile` for each app and a top-level
-  `docker-compose.yml`, so `docker compose up` brings up the whole stack. This keeps setup
-  reproducible and leaves a clean path to ship to the cloud later. Local (non-Docker) run
-  instructions are also provided.
 - **Task runner:** a top-level `justfile` ([casey/just](https://github.com/casey/just))
-  provides the canonical local commands for working outside Docker — installing
-  dependencies, running each app, and running tests — so contributors use one consistent
-  entry point instead of memorizing per-stack commands.
+  provides the canonical local commands — installing dependencies, running each app, and
+  running tests — so contributors use one consistent entry point instead of memorizing
+  per-stack commands.
 
 ### Repository layout
 
@@ -54,13 +50,12 @@ A deliberately flat structure matched to a single-entity CRUD app.
 /backend            ASP.NET Core Web API + Dapper (SQLite)
 /frontend           React + TypeScript (Vite)
 justfile            Local task runner (setup, run, test)
-docker-compose.yml  Runs backend + frontend together
 README.md           Setup, what was built, trade-offs, future work
 ```
 
 ### Task runner (`just`)
 
-`just` is the entry point for local (non-Docker) development. Planned recipes:
+`just` is the entry point for local development. Planned recipes:
 
 | Recipe          | Purpose                                            |
 | --------------- | -------------------------------------------------- |
@@ -69,9 +64,6 @@ README.md           Setup, what was built, trade-offs, future work
 | `just frontend` | Run the Vite dev server                            |
 | `just dev`      | Run backend and frontend together                  |
 | `just test`     | Run backend and frontend tests                     |
-
-Docker remains the zero-prerequisite path (`docker compose up`); `just` is the convenience
-path for running directly on the host.
 
 ## Data Model
 
@@ -197,8 +189,7 @@ to change, not exhaustive coverage.
 
 The README accompanies the submission and includes:
 
-- Exact setup steps: the Docker one-liner and the local (`just`) run instructions for
-  both apps.
+- Exact setup steps: the local (`just`) run instructions for both apps.
 - What was built.
 - What was deliberately left out and why (see Non-Goals).
 - What would come next with more time (e.g. filtering/sorting UI, tags and priorities,

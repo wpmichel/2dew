@@ -1,7 +1,4 @@
-# Local task runner for working outside Docker.
-#
-# Docker is the zero-prerequisite path (`docker compose up --build`); these recipes are the
-# convenience path for running directly on the host (needs the .NET 10 SDK, Node, and pnpm).
+# Local task runner. Needs the .NET 10 SDK, Node, and pnpm (see the Brewfile on macOS).
 
 # Show available recipes.
 default:

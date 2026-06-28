@@ -7,35 +7,25 @@ from the UI through the API into the database and back.
 
 ## Quick start
 
-### Option A — Docker (no toolchain required)
-
-```sh
-docker compose up --build
-```
-
-- Frontend: http://localhost:5173
-- API: http://localhost:5088
-
-The SQLite file lives on a named volume, so your tasks survive `docker compose down` / `up`.
-
-### Option B — Run on the host
-
 Prerequisites: **.NET 10 SDK**, **Node 20+**, **pnpm**, and (optionally)
 [`just`](https://github.com/casey/just) for the shortcuts below.
 
 **On macOS**, install all of them at once with [Homebrew](https://brew.sh):
 
 ```sh
-brew bundle        # reads the Brewfile: dotnet, node, pnpm, just, docker-desktop
+brew bundle        # reads the Brewfile: dotnet, node, pnpm, just
 ```
 
 Then:
 
 ```sh
 just setup     # restore backend packages + install frontend deps
-just dev       # run API (:5088) and Vite dev server (:5173) together
+just dev       # run API (:5088) + Vite dev server (:5173), opens the app in your browser
 just test      # run backend and frontend tests
 ```
+
+- Frontend: http://localhost:5173
+- API: http://localhost:5088
 
 Without `just`, the same commands directly:
 
@@ -114,8 +104,8 @@ To keep scope matched to the problem (and noted here rather than left as silent 
 - Refresh-token rotation / advanced session management — the JWT is a single long-lived token.
 - CI/CD, deployment config, and observability/monitoring.
 
-The JWT signing key in `appsettings.json` / `docker-compose.yml` is a **development placeholder**;
-a real deployment would supply a secret via configuration/environment.
+The JWT signing key in `appsettings.json` is a **development placeholder**; a real deployment
+would supply a secret via configuration/environment.
 
 ## What's next with more time
 

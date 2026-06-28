@@ -16,6 +16,3 @@ brew "pnpm"
 
 # just — runs the repo's task recipes (just setup / dev / test).
 brew "just"
-
-# Docker Desktop — optional zero-toolchain path (docker compose up --build).
-cask "docker-desktop"
