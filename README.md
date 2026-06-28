@@ -20,8 +20,16 @@ The SQLite file lives on a named volume, so your tasks survive `docker compose d
 
 ### Option B — Run on the host
 
-Prerequisites: **.NET 10 SDK**, **Node 20+**, and **pnpm** (`corepack enable` will provide the
-pinned version). Optionally [`just`](https://github.com/casey/just) for the shortcuts below.
+Prerequisites: **.NET 10 SDK**, **Node 20+**, **pnpm**, and (optionally)
+[`just`](https://github.com/casey/just) for the shortcuts below.
+
+**On macOS**, install all of them at once with [Homebrew](https://brew.sh):
+
+```sh
+brew bundle        # reads the Brewfile: dotnet, node, pnpm, just, docker-desktop
+```
+
+Then:
 
 ```sh
 just setup     # restore backend packages + install frontend deps
