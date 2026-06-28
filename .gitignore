@@ -44,6 +44,10 @@ ScaffoldingReadMe.txt
 *.db-shm
 *.db-wal
 
+# OpenAPI document emitted on backend build; regenerated deterministically.
+# The committed contract artifact is the frontend's generated src/api/schema.ts.
+/backend/backend.json
+
 # Others
 ~$*
 *~
