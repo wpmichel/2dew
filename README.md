@@ -19,9 +19,11 @@ brew bundle        # reads the Brewfile: dotnet, node, pnpm, just
 Then:
 
 ```sh
-just setup     # restore backend packages + install frontend deps
-just dev       # run API (:5088) + Vite dev server (:5173), opens the app in your browser
-just test      # run backend and frontend tests
+just setup        # restore backend packages + install frontend deps
+just dev          # run API (:5088) + Vite dev server (:5173), opens the app in your browser
+just test         # run backend and frontend tests
+just lint-backend # check backend code style (dotnet format --verify-no-changes)
+just fix-backend  # auto-fix backend code style (unused usings, formatting)
 ```
 
 - Frontend: http://localhost:5173

@@ -33,3 +33,15 @@ gen-api:
 test:
     cd backend.Tests && dotnet test
     cd frontend && pnpm test
+
+# Check backend code style without modifying files (fails on any violation).
+lint-backend:
+    cd backend && dotnet format --verify-no-changes
+
+# Auto-fix backend code style (unused usings, formatting, etc.).
+fix-backend:
+    cd backend && dotnet format
+
+# Delete the SQLite database so it is recreated with a fresh schema on next startup.
+reset-db:
+    rm -f backend/app.db
