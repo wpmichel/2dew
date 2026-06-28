@@ -1,10 +1,10 @@
-import { useAuth } from './auth/AuthContext'
-import { AuthScreen } from './auth/AuthScreen'
+import { useAuth } from "./auth/AuthContext";
+import { AuthScreen } from "./auth/AuthScreen";
 
 export default function App() {
-  const { token, email, logout } = useAuth()
+  const { token, email, logout } = useAuth();
 
-  if (!token) return <AuthScreen />
+  if (!token) return <AuthScreen />;
 
   // The task list lands here in the next change; for now confirm the authenticated shell works.
   return (
@@ -13,9 +13,11 @@ export default function App() {
         <h1>My Tasks</h1>
         <div className="app-header-user">
           <span>{email}</span>
-          <button type="button" className="link" onClick={logout}>Log out</button>
+          <button type="button" className="link" onClick={logout}>
+            Log out
+          </button>
         </div>
       </header>
     </div>
-  )
+  );
 }
