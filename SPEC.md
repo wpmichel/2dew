@@ -172,6 +172,10 @@ update.
       server-confirmed state and a visible error is surfaced; the UI converges to a consistent state.
 9. **Visible states.** Loading, empty list, validation errors, and failed-request errors all
    render to the user rather than failing silently.
+10. **Due-soon rollup.** A small section surfaces active tasks due within 2 days (and anything
+    overdue). It collapses to nothing when empty. Each item has a snooze control that hides it
+    from the rollup; snoozes persist in `localStorage`. The rollup refetches (debounced) when the
+    active list changes.
 
 ## Validation Rules
 

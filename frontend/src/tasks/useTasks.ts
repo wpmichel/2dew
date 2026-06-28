@@ -22,6 +22,9 @@ export interface UseTasksOptions {
   // Fired after a task leaves the active list (completed or deleted) so the completed section
   // can refetch and surface it.
   onCompleted?: () => void;
+  // Fired after any successful mutation (create, edit, complete, delete) so derived views like
+  // the due-soon rollup can refetch.
+  onMutated?: () => void;
   // Bumped by the completed section when a task is reopened, prompting the active list to
   // refetch its first page so the task reappears.
   reloadKey?: number;
@@ -45,7 +48,7 @@ export interface UseTasks {
 }
 
 export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions = {}): UseTasks {
-  const { onCompleted, reloadKey } = options;
+  const { onCompleted, onMutated, reloadKey } = options;
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<ListStatus>("loading");
@@ -117,6 +120,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       try {
         const created = await client.createTask(input);
         setTasks((prev) => replaceById(prev, temp.id, created));
+        onMutated?.();
       } catch (err) {
         // Roll back the optimistic insert; the form surfaces the error inline.
         setTasks((prev) => removeById(prev, temp.id));
@@ -125,7 +129,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(temp.id, false);
       }
     },
-    [client, setPending],
+    [client, setPending, onMutated],
   );
 
   const updateTask = useCallback(
@@ -146,6 +150,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       try {
         const updated = await client.updateTask(id, input);
         setTasks((prev) => replaceById(prev, id, updated));
+        onMutated?.();
       } catch (err) {
         // Roll back to the last server-confirmed state; the form surfaces the error inline.
         setTasks((prev) => replaceById(prev, id, snapshot));
@@ -154,7 +159,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(id, false);
       }
     },
-    [client, setPending],
+    [client, setPending, onMutated],
   );
 
   // Completing a task removes it from the active list (active = not completed) and hands it to
@@ -176,6 +181,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
           isCompleted: true,
         });
         onCompleted?.();
+        onMutated?.();
       } catch (err) {
         setTasks((prev) => insertAt(prev, Math.min(index, prev.length), snapshot));
         setError(messageOf(err));
@@ -183,7 +189,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(task.id, false);
       }
     },
-    [client, setPending, onCompleted],
+    [client, setPending, onCompleted, onMutated],
   );
 
   const deleteTask = useCallback(
@@ -198,6 +204,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         await client.deleteTask(id);
         // Soft-delete: the task now lives in the completed section.
         onCompleted?.();
+        onMutated?.();
       } catch (err) {
         // No form backs delete, so fully handle the failure: restore the row at its original
         // position and surface the error on the global banner (do not rethrow).
@@ -207,7 +214,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(id, false);
       }
     },
-    [client, setPending, onCompleted],
+    [client, setPending, onCompleted, onMutated],
   );
 
   const dismissError = useCallback(() => setError(null), []);

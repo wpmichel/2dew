@@ -1,24 +1,38 @@
 import { useReducer } from "react";
 import { useTasks } from "./useTasks";
 import { useCompletedTasks } from "./useCompletedTasks";
+import { useDueSoonTasks } from "./useDueSoonTasks";
 import { InlineCreateRow } from "./InlineCreateRow";
 import { TaskRow } from "./TaskRow";
+import { DueSoonSection } from "./DueSoonSection";
 import { CompletedSection } from "./CompletedSection";
 
 export function TasksPage() {
-  // Each section owns its own optimistic state; these counters let one nudge the other to
-  // refetch when a task crosses between them (completed/deleted ⇄ reopened).
+  // Each section owns its own optimistic state; these counters let one nudge the others to
+  // refetch when a task crosses between them (completed/deleted ⇄ reopened) or when any active
+  // mutation could change what's due soon.
   const [activeReloadKey, reloadActive] = useReducer((n) => n + 1, 0);
   const [completedReloadKey, reloadCompleted] = useReducer((n) => n + 1, 0);
+  const [dueSoonReloadKey, reloadDueSoon] = useReducer((n) => n + 1, 0);
 
-  const tasks = useTasks(undefined, { onCompleted: reloadCompleted, reloadKey: activeReloadKey });
+  const tasks = useTasks(undefined, {
+    onCompleted: reloadCompleted,
+    onMutated: reloadDueSoon,
+    reloadKey: activeReloadKey,
+  });
   const completed = useCompletedTasks(undefined, {
-    onReopened: reloadActive,
+    onReopened: () => {
+      reloadActive();
+      reloadDueSoon();
+    },
     reloadKey: completedReloadKey,
   });
+  const dueSoon = useDueSoonTasks(undefined, { reloadKey: dueSoonReloadKey });
 
   return (
     <>
+      <DueSoonSection dueSoon={dueSoon} />
+
       <div className="toolbar">
         <input
           type="search"
