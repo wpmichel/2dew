@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api as defaultApi } from "../api/client";
 import type { CreateTaskRequest, TaskResponse, UpdateTaskRequest } from "../api/types";
 import { messageOf } from "../util/errors";
+import { playCompletionChime } from "../util/chime";
 import { insertAt, makeTempTask, prepend, removeById, replaceById } from "./optimistic";
 
 // The slice of the API client this hook depends on. Declaring it as an interface lets tests
@@ -180,6 +181,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
           dueDateUtc: task.dueDateUtc,
           isCompleted: true,
         });
+        playCompletionChime();
         onCompleted?.();
         onMutated?.();
       } catch (err) {

@@ -176,6 +176,8 @@ update.
     overdue). It collapses to nothing when empty. Each item has a snooze control that hides it
     from the rollup; snoozes persist in `localStorage`. The rollup refetches (debounced) when the
     active list changes.
+11. **Completion chime.** Completing a task plays a short Web Audio chime — a small delight, and
+    a no-op where audio is unavailable.
 
 ## Validation Rules
 
