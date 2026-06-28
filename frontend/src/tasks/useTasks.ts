@@ -26,9 +26,6 @@ export interface UseTasksOptions {
   // Fired after any successful mutation (create, edit, complete, delete) so derived views like
   // the due-soon rollup can refetch.
   onMutated?: () => void;
-  // Bumped by the completed section when a task is reopened, prompting the active list to
-  // refetch its first page so the task reappears.
-  reloadKey?: number;
 }
 
 export interface UseTasks {
@@ -45,11 +42,14 @@ export interface UseTasks {
   updateTask: (id: string, input: UpdateTaskRequest) => Promise<void>;
   completeTask: (task: TaskResponse) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  // Re-insert a task the completed section just reopened. An optimistic overlay rather than a
+  // refetch, so it can't race with concurrent edits the way a full reload would.
+  addReopenedTask: (task: TaskResponse) => void;
   dismissError: () => void;
 }
 
 export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions = {}): UseTasks {
-  const { onCompleted, onMutated, reloadKey } = options;
+  const { onCompleted, onMutated } = options;
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<ListStatus>("loading");
@@ -65,8 +65,16 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
     tasksRef.current = tasks;
   }, [tasks]);
 
-  // Guards against out-of-order first-page responses when the search term changes quickly.
+  // Every first-page load and every optimistic mutation claims a new id. A load only applies
+  // its result if its id is still current, so a search refetch whose request was issued before a
+  // later mutation (or a newer refetch) is ignored when it resolves and can't clobber it.
   const requestId = useRef(0);
+
+  // Invalidate any first-page refetch currently in flight. Called before applying an optimistic
+  // change so a stale server response (e.g. one issued before the change) can't overwrite it.
+  const supersedeInFlightLoad = useCallback(() => {
+    requestId.current++;
+  }, []);
 
   const setPending = useCallback((id: string, on: boolean) => {
     setPendingIds((prev) => {
@@ -96,14 +104,16 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       }
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [search, client, reloadKey]);
+  }, [search, client]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
       const page = await client.listTasks({ cursor: nextCursor, search, limit: PAGE_SIZE });
-      setTasks((prev) => [...prev, ...page.items]);
+      // Drop ids already present so an optimistically re-inserted task can't show up twice when
+      // its real page is loaded.
+      setTasks((prev) => [...prev, ...page.items.filter((p) => !prev.some((t) => t.id === p.id))]);
       setNextCursor(page.nextCursor);
     } catch (err) {
       setError(messageOf(err));
@@ -116,6 +126,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
     async (input: CreateTaskRequest) => {
       const temp = makeTempTask(input);
       setError(null);
+      supersedeInFlightLoad();
       setTasks((prev) => prepend(prev, temp));
       setPending(temp.id, true);
       try {
@@ -130,7 +141,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(temp.id, false);
       }
     },
-    [client, setPending, onMutated],
+    [client, setPending, onMutated, supersedeInFlightLoad],
   );
 
   const updateTask = useCallback(
@@ -146,6 +157,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         updatedAt: new Date().toISOString(),
       };
       setError(null);
+      supersedeInFlightLoad();
       setTasks((prev) => replaceById(prev, id, optimistic));
       setPending(id, true);
       try {
@@ -160,7 +172,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(id, false);
       }
     },
-    [client, setPending, onMutated],
+    [client, setPending, onMutated, supersedeInFlightLoad],
   );
 
   // Completing a task removes it from the active list (active = not completed) and hands it to
@@ -172,6 +184,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       if (index === -1) return;
       const snapshot = tasksRef.current[index];
       setError(null);
+      supersedeInFlightLoad();
       setTasks((prev) => removeById(prev, task.id));
       setPending(task.id, true);
       try {
@@ -191,7 +204,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(task.id, false);
       }
     },
-    [client, setPending, onCompleted, onMutated],
+    [client, setPending, onCompleted, onMutated, supersedeInFlightLoad],
   );
 
   const deleteTask = useCallback(
@@ -200,6 +213,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       if (index === -1) return;
       const snapshot = tasksRef.current[index];
       setError(null);
+      supersedeInFlightLoad();
       setTasks((prev) => removeById(prev, id));
       setPending(id, true);
       try {
@@ -216,7 +230,18 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setPending(id, false);
       }
     },
-    [client, setPending, onCompleted, onMutated],
+    [client, setPending, onCompleted, onMutated, supersedeInFlightLoad],
+  );
+
+  // Surface a reopened task at the top of the active list (deduped). It carries the server's
+  // confirmed state, so no reconciliation is needed; a later search/refetch restores true order.
+  const addReopenedTask = useCallback(
+    (task: TaskResponse) => {
+      setError(null);
+      supersedeInFlightLoad();
+      setTasks((prev) => (prev.some((t) => t.id === task.id) ? prev : prepend(prev, task)));
+    },
+    [supersedeInFlightLoad],
   );
 
   const dismissError = useCallback(() => setError(null), []);
@@ -235,6 +260,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
     updateTask,
     completeTask,
     deleteTask,
+    addReopenedTask,
     dismissError,
   };
 }

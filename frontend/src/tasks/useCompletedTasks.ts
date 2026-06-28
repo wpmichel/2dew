@@ -15,8 +15,8 @@ export interface CompletedTasksApi {
 const PAGE_SIZE = 20;
 
 export interface UseCompletedTasksOptions {
-  // Fired after a task is reopened so the active list can refetch and surface it again.
-  onReopened?: () => void;
+  // Fired with the reopened task so the active list can re-insert it (as an optimistic overlay).
+  onReopened?: (task: TaskResponse) => void;
   // Bumped by the active list when a task is completed or deleted, prompting a refetch.
   reloadKey?: number;
 }
@@ -106,13 +106,13 @@ export function useCompletedTasks(
       setTasks((prev) => removeById(prev, task.id));
       setPending(task.id, true);
       try {
-        await client.updateTask(task.id, {
+        const reopened = await client.updateTask(task.id, {
           title: task.title,
           description: task.description,
           dueDateUtc: task.dueDateUtc,
           isCompleted: false,
         });
-        onReopened?.();
+        onReopened?.(reopened);
       } catch (err) {
         setTasks((prev) => insertAt(prev, Math.min(index, prev.length), snapshot));
         setError(messageOf(err));

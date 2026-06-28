@@ -8,21 +8,20 @@ import { DueSoonSection } from "./DueSoonSection";
 import { CompletedSection } from "./CompletedSection";
 
 export function TasksPage() {
-  // Each section owns its own optimistic state; these counters let one nudge the others to
-  // refetch when a task crosses between them (completed/deleted ⇄ reopened) or when any active
-  // mutation could change what's due soon.
-  const [activeReloadKey, reloadActive] = useReducer((n) => n + 1, 0);
+  // Each section owns its own optimistic state; these counters let one nudge the others when a
+  // task crosses between them. Completing or deleting reloads the completed section; any active
+  // mutation reloads the due-soon rollup. Reopening hands the task straight back to the active
+  // list as an optimistic overlay (no reload), so it can't race a concurrent edit.
   const [completedReloadKey, reloadCompleted] = useReducer((n) => n + 1, 0);
   const [dueSoonReloadKey, reloadDueSoon] = useReducer((n) => n + 1, 0);
 
   const tasks = useTasks(undefined, {
     onCompleted: reloadCompleted,
     onMutated: reloadDueSoon,
-    reloadKey: activeReloadKey,
   });
   const completed = useCompletedTasks(undefined, {
-    onReopened: () => {
-      reloadActive();
+    onReopened: (task) => {
+      tasks.addReopenedTask(task);
       reloadDueSoon();
     },
     reloadKey: completedReloadKey,

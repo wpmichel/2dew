@@ -154,6 +154,54 @@ describe("useTasks optimistic behavior", () => {
     expect(hook.result.current.tasks).toHaveLength(0);
   });
 
+  it("re-inserts a reopened task at the top without duplicating", async () => {
+    const client = fakeApi([task("a")]);
+    const { result } = await renderReady(client);
+
+    act(() => result.current.addReopenedTask(task("z")));
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["z", "a"]);
+
+    // Idempotent: re-inserting the same id doesn't duplicate it.
+    act(() => result.current.addReopenedTask(task("z")));
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["z", "a"]);
+  });
+
+  it("ignores an in-flight search refetch superseded by an optimistic delete", async () => {
+    const firstPage: PagedTasks = { items: [task("a"), task("b")], nextCursor: null };
+    const reload = deferred<PagedTasks>();
+    const listTasks = vi
+      .fn()
+      .mockResolvedValueOnce(firstPage) // initial mount load
+      .mockReturnValueOnce(reload.promise); // search-triggered reload, stays in flight
+    const client: TasksApi = {
+      listTasks,
+      createTask: vi.fn(),
+      updateTask: vi.fn(),
+      deleteTask: vi.fn(async () => undefined),
+    };
+
+    const { result } = renderHook(() => useTasks(client));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["a", "b"]);
+
+    // A search change kicks off a refetch that stays pending.
+    act(() => result.current.setSearch("x"));
+    await waitFor(() => expect(listTasks).toHaveBeenCalledTimes(2));
+
+    // Delete "a" while that refetch is still in flight.
+    await act(async () => {
+      await result.current.deleteTask("a");
+    });
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["b"]);
+
+    // The stale refetch resolves with the pre-delete list; it must not resurrect "a".
+    await act(async () => {
+      reload.resolve(firstPage);
+      await reload.promise;
+    });
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["b"]);
+  });
+
   it("restores a deleted row and surfaces an error when the delete fails", async () => {
     const client = fakeApi([task("a"), task("b")]);
     const del = deferred<void>();
