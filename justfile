@@ -20,11 +20,11 @@ backend:
 frontend:
     cd frontend && pnpm dev
 
-# Run backend and frontend together.
+# Run backend and frontend together, opening the app in your browser once Vite is ready.
 dev:
     #!/usr/bin/env sh
     (cd backend && dotnet run) &
-    (cd frontend && pnpm dev) &
+    (cd frontend && pnpm dev --open) &
     wait
 
 # Regenerate the frontend API types from the backend's OpenAPI document.
