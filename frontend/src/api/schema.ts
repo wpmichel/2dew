@@ -158,6 +158,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks/completed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                    limit?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PagedResponseOfTaskResponse"];
+                        "application/json": components["schemas"]["PagedResponseOfTaskResponse"];
+                        "text/json": components["schemas"]["PagedResponseOfTaskResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/due-soon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TaskResponse"][];
+                        "application/json": components["schemas"]["TaskResponse"][];
+                        "text/json": components["schemas"]["TaskResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tasks/{id}": {
         parameters: {
             query?: never;
@@ -279,6 +356,8 @@ export interface components {
             /** Format: date-time */
             dueDateUtc: null | string;
             isCompleted: boolean;
+            /** Format: date-time */
+            completedAt: null | string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */

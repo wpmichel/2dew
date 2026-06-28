@@ -23,6 +23,7 @@ export function makeTempTask(input: CreateTaskRequest): TaskResponse {
     description: input.description ?? null,
     dueDateUtc: input.dueDateUtc ?? null,
     isCompleted: false,
+    completedAt: null,
     createdAt: now,
     updatedAt: now,
   };

@@ -12,6 +12,7 @@ function task(id: string, overrides: Partial<TaskResponse> = {}): TaskResponse {
     description: null,
     dueDateUtc: null,
     isCompleted: false,
+    completedAt: null,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -112,6 +113,45 @@ describe("useTasks optimistic behavior", () => {
     expect(result.current.tasks[0].title).toBe("Original");
     expect(result.current.tasks[0].isCompleted).toBe(false);
     expect(result.current.pendingIds.size).toBe(0);
+  });
+
+  it("removes a completed task from the active list and restores it when the update fails", async () => {
+    const client = fakeApi([task("a"), task("b")]);
+    const update = deferred<TaskResponse>();
+    client.updateTask = vi.fn(() => update.promise);
+
+    const { result } = await renderReady(client);
+
+    let pending: Promise<void>;
+    act(() => {
+      pending = result.current.completeTask(task("b"));
+    });
+
+    // Leaves the active list immediately (active = not completed).
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["a"]);
+
+    await act(async () => {
+      update.reject(new ApiError(500, "Complete failed"));
+      await pending;
+    });
+
+    // Restored at its original position, with a visible error.
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["a", "b"]);
+    expect(result.current.error).toBe("Complete failed");
+  });
+
+  it("notifies the completed section after a task is completed", async () => {
+    const client = fakeApi([task("a")]);
+    const onCompleted = vi.fn();
+    const hook = renderHook(() => useTasks(client, { onCompleted }));
+    await waitFor(() => expect(hook.result.current.status).toBe("ready"));
+
+    await act(async () => {
+      await hook.result.current.completeTask(task("a"));
+    });
+
+    expect(onCompleted).toHaveBeenCalledOnce();
+    expect(hook.result.current.tasks).toHaveLength(0);
   });
 
   it("restores a deleted row and surfaces an error when the delete fails", async () => {

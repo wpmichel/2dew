@@ -18,6 +18,15 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 export type ListStatus = "loading" | "ready" | "error";
 
+export interface UseTasksOptions {
+  // Fired after a task leaves the active list (completed or deleted) so the completed section
+  // can refetch and surface it.
+  onCompleted?: () => void;
+  // Bumped by the completed section when a task is reopened, prompting the active list to
+  // refetch its first page so the task reappears.
+  reloadKey?: number;
+}
+
 export interface UseTasks {
   tasks: TaskResponse[];
   status: ListStatus;
@@ -30,12 +39,13 @@ export interface UseTasks {
   loadMore: () => void;
   createTask: (input: CreateTaskRequest) => Promise<void>;
   updateTask: (id: string, input: UpdateTaskRequest) => Promise<void>;
-  toggleComplete: (task: TaskResponse) => Promise<void>;
+  completeTask: (task: TaskResponse) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   dismissError: () => void;
 }
 
-export function useTasks(client: TasksApi = defaultApi): UseTasks {
+export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions = {}): UseTasks {
+  const { onCompleted, reloadKey } = options;
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<ListStatus>("loading");
@@ -82,7 +92,7 @@ export function useTasks(client: TasksApi = defaultApi): UseTasks {
       }
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [search, client]);
+  }, [search, client, reloadKey]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMore) return;
@@ -147,21 +157,33 @@ export function useTasks(client: TasksApi = defaultApi): UseTasks {
     [client, setPending],
   );
 
-  const toggleComplete = useCallback(
+  // Completing a task removes it from the active list (active = not completed) and hands it to
+  // the completed section. Mirrors delete's optimistic remove/restore; no form backs it, so
+  // failures surface on the global banner.
+  const completeTask = useCallback(
     async (task: TaskResponse) => {
-      // No form backs the toggle, so surface any failure on the global banner.
+      const index = tasksRef.current.findIndex((t) => t.id === task.id);
+      if (index === -1) return;
+      const snapshot = tasksRef.current[index];
+      setError(null);
+      setTasks((prev) => removeById(prev, task.id));
+      setPending(task.id, true);
       try {
-        await updateTask(task.id, {
+        await client.updateTask(task.id, {
           title: task.title,
           description: task.description,
           dueDateUtc: task.dueDateUtc,
-          isCompleted: !task.isCompleted,
+          isCompleted: true,
         });
+        onCompleted?.();
       } catch (err) {
+        setTasks((prev) => insertAt(prev, Math.min(index, prev.length), snapshot));
         setError(messageOf(err));
+      } finally {
+        setPending(task.id, false);
       }
     },
-    [updateTask],
+    [client, setPending, onCompleted],
   );
 
   const deleteTask = useCallback(
@@ -174,6 +196,8 @@ export function useTasks(client: TasksApi = defaultApi): UseTasks {
       setPending(id, true);
       try {
         await client.deleteTask(id);
+        // Soft-delete: the task now lives in the completed section.
+        onCompleted?.();
       } catch (err) {
         // No form backs delete, so fully handle the failure: restore the row at its original
         // position and surface the error on the global banner (do not rethrow).
@@ -183,7 +207,7 @@ export function useTasks(client: TasksApi = defaultApi): UseTasks {
         setPending(id, false);
       }
     },
-    [client, setPending],
+    [client, setPending, onCompleted],
   );
 
   const dismissError = useCallback(() => setError(null), []);
@@ -200,7 +224,7 @@ export function useTasks(client: TasksApi = defaultApi): UseTasks {
     loadMore,
     createTask,
     updateTask,
-    toggleComplete,
+    completeTask,
     deleteTask,
     dismissError,
   };

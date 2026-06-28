@@ -1,9 +1,21 @@
+import { useReducer } from "react";
 import { useTasks } from "./useTasks";
+import { useCompletedTasks } from "./useCompletedTasks";
 import { TaskForm } from "./TaskForm";
 import { TaskRow } from "./TaskRow";
+import { CompletedSection } from "./CompletedSection";
 
 export function TasksPage() {
-  const tasks = useTasks();
+  // Each section owns its own optimistic state; these counters let one nudge the other to
+  // refetch when a task crosses between them (completed/deleted ⇄ reopened).
+  const [activeReloadKey, reloadActive] = useReducer((n) => n + 1, 0);
+  const [completedReloadKey, reloadCompleted] = useReducer((n) => n + 1, 0);
+
+  const tasks = useTasks(undefined, { onCompleted: reloadCompleted, reloadKey: activeReloadKey });
+  const completed = useCompletedTasks(undefined, {
+    onReopened: reloadActive,
+    reloadKey: completedReloadKey,
+  });
 
   return (
     <>
@@ -54,7 +66,7 @@ export function TasksPage() {
               key={task.id}
               task={task}
               pending={tasks.pendingIds.has(task.id)}
-              onToggle={tasks.toggleComplete}
+              onToggle={tasks.completeTask}
               onUpdate={tasks.updateTask}
               onDelete={tasks.deleteTask}
             />
@@ -74,6 +86,8 @@ export function TasksPage() {
           </button>
         </div>
       )}
+
+      <CompletedSection completed={completed} />
     </>
   );
 }

@@ -91,6 +91,8 @@ export const api = {
   login: (body: LoginRequest) => request<AuthResponse>("POST", "/api/auth/login", body),
   listTasks: (params: ListParams = {}) =>
     request<PagedTasks>("GET", `/api/tasks${queryString(params)}`),
+  listCompletedTasks: (params: ListParams = {}) =>
+    request<PagedTasks>("GET", `/api/tasks/completed${queryString(params)}`),
   createTask: (body: CreateTaskRequest) => request<TaskResponse>("POST", "/api/tasks", body),
   updateTask: (id: string, body: UpdateTaskRequest) =>
     request<TaskResponse>("PUT", `/api/tasks/${id}`, body),

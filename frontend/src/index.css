@@ -257,3 +257,64 @@ textarea[aria-invalid="true"] {
   justify-content: center;
   margin-top: 1rem;
 }
+
+/* Icon-only action buttons (reopen, delete) */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--muted);
+  border-radius: 6px;
+}
+.icon-button:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--text);
+}
+.icon-button.danger:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+/* Completed section */
+.completed-section {
+  margin-top: 1.5rem;
+}
+.completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0.4rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.completed-toggle:hover {
+  color: var(--text);
+}
+.completed-toggle .chevron {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.completed-toggle .chevron.open {
+  transform: rotate(90deg);
+}
+.completed-count {
+  color: var(--muted);
+  font-weight: 400;
+}
+.completed-list {
+  margin-top: 0.5rem;
+}
+.completed-list .task-row {
+  background: transparent;
+  border-style: dashed;
+}
+.completed-list .task-title {
+  text-decoration: line-through;
+  color: var(--done);
+}
