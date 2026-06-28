@@ -42,6 +42,11 @@ lint-backend:
 fix-backend:
     cd backend && dotnet format
 
+# Seed a demo user (seed@example.com / password123) with active + completed tasks so the
+# pagination/scroll behavior is observable. The API must be running (`just backend` or `just dev`).
+seed active="50" completed="50":
+    SEED_ACTIVE={{active}} SEED_COMPLETED={{completed}} python3 scripts/seed.py
+
 # Delete the SQLite database so it is recreated with a fresh schema on next startup.
 reset-db:
     rm -f backend/app.db

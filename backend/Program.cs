@@ -19,6 +19,11 @@ builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+// Fail fast rather than start up signing/accepting tokens with an unusable key. HMAC-SHA256
+// needs at least a 256-bit (32-byte) key; an empty or short Jwt:Key is a misconfiguration.
+if (string.IsNullOrWhiteSpace(jwt.Key) || Encoding.UTF8.GetByteCount(jwt.Key) < 32)
+    throw new InvalidOperationException(
+        "Jwt:Key is missing or too short (need at least 32 bytes for HMAC-SHA256). Set it in configuration.");
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

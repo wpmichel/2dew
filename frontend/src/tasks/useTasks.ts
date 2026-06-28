@@ -56,7 +56,7 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState("");
+  const [search, setSearchState] = useState("");
 
   // Mirrors the latest list so mutation handlers can snapshot a task for rollback without
   // depending on a possibly-stale render closure.
@@ -83,6 +83,14 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
       else next.delete(id);
       return next;
     });
+  }, []);
+
+  // Changing the search term resets pagination. Null the cursor synchronously — not just when the
+  // debounced refetch lands — so Load more is disabled in the meantime and can't send a cursor
+  // from the previous search.
+  const setSearch = useCallback((term: string) => {
+    setSearchState(term);
+    setNextCursor(null);
   }, []);
 
   // Debounced first-page load; re-runs whenever the search term changes (and on mount).
@@ -134,8 +142,10 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setTasks((prev) => replaceById(prev, temp.id, created));
         onMutated?.();
       } catch (err) {
-        // Roll back the optimistic insert; the form surfaces the error inline.
+        // Roll back the optimistic insert and surface the error on the global banner. Rethrow so
+        // the create row keeps the typed title and can re-enable its input.
         setTasks((prev) => removeById(prev, temp.id));
+        setError(messageOf(err));
         throw err;
       } finally {
         setPending(temp.id, false);
@@ -165,9 +175,10 @@ export function useTasks(client: TasksApi = defaultApi, options: UseTasksOptions
         setTasks((prev) => replaceById(prev, id, updated));
         onMutated?.();
       } catch (err) {
-        // Roll back to the last server-confirmed state; the form surfaces the error inline.
+        // Roll back to the last server-confirmed state and surface the error on the global banner,
+        // matching completeTask/deleteTask (the inline edit has already blurred, so no rethrow).
         setTasks((prev) => replaceById(prev, id, snapshot));
-        throw err;
+        setError(messageOf(err));
       } finally {
         setPending(id, false);
       }

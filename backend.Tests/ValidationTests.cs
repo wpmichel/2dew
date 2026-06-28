@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using Backend.Dtos;
 
 namespace Backend.Tests;
 
@@ -42,5 +43,51 @@ public class ValidationTests : IClassFixture<ApiFactory>
         var response = await client.GetAsync("/api/tasks");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Title_over_the_max_length_is_rejected_with_400()
+    {
+        var client = await _factory.CreateUserClientAsync("val-long@example.com");
+
+        var response = await client.PostAsJsonAsync("/api/tasks", new { title = new string('x', 201) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Registering_a_duplicate_email_is_rejected_with_400()
+    {
+        const string email = "val-dupe@example.com";
+        await _factory.CreateUserClientAsync(email); // first registration succeeds
+
+        var client = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/register",
+            new { email, password = "password123" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Updating_a_task_with_invalid_input_is_rejected_with_400()
+    {
+        var client = await _factory.CreateUserClientAsync("val-update@example.com");
+        var created = await client.PostAsJsonAsync("/api/tasks", new { title = "Original" });
+        var task = await created.Content.ReadFromJsonAsync<TaskResponse>();
+        var id = task!.Id;
+
+        var whitespace = await client.PutAsJsonAsync($"/api/tasks/{id}",
+            new { title = "   ", isCompleted = false });
+        Assert.Equal(HttpStatusCode.BadRequest, whitespace.StatusCode);
+
+        var tooLong = await client.PutAsJsonAsync($"/api/tasks/{id}",
+            new { title = new string('x', 201), isCompleted = false });
+        Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+
+        var badDate = new StringContent(
+            """{ "title": "Valid title", "dueDateUtc": "not-a-real-date" }""",
+            Encoding.UTF8, "application/json");
+        var invalidDate = await client.PutAsync($"/api/tasks/{id}", badDate);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidDate.StatusCode);
     }
 }

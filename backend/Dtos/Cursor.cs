@@ -2,13 +2,15 @@ using System.Text;
 
 namespace Backend.Dtos;
 
-// Opaque keyset cursor encoding the last seen (CreatedAt, Id) so the next page can
-// resume without offset drift when rows are inserted or deleted mid-scroll.
-public record Cursor(DateTime CreatedAt, Guid Id)
+// Opaque keyset cursor encoding the last seen (Timestamp, Id) so the next page can
+// resume without offset drift when rows are inserted or deleted mid-scroll. Timestamp is
+// whichever column the list is ordered by — CreatedAt for the active list, CompletedAt for
+// the completed list — and is opaque to the client either way.
+public record Cursor(DateTime Timestamp, Guid Id)
 {
     public string Encode()
     {
-        var raw = $"{CreatedAt.Ticks}:{Id}";
+        var raw = $"{Timestamp.Ticks}:{Id}";
         return Convert.ToBase64String(Encoding.UTF8.GetBytes(raw));
     }
 

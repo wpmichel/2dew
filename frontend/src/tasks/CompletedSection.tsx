@@ -11,61 +11,74 @@ interface CompletedSectionProps {
 export function CompletedSection({ completed }: CompletedSectionProps) {
   const [open, setOpen] = useState(false);
 
-  if (completed.tasks.length === 0) return null;
+  if (completed.tasks.length === 0 && !completed.error) return null;
 
   return (
     <section className="completed-section">
-      <button
-        type="button"
-        className="completed-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className={`chevron${open ? " open" : ""}`} aria-hidden="true">
-          ›
-        </span>
-        Completed
-        <span className="completed-count">{completed.tasks.length}</span>
-      </button>
+      {completed.error && (
+        <p className="error-banner" role="alert">
+          {completed.error}
+        </p>
+      )}
 
-      {open && (
-        <ul className="task-list completed-list">
-          {completed.tasks.map((task) => (
-            <li key={task.id} className="task-row completed">
-              <div className="task-main">
-                <p className="task-title">{task.title}</p>
-                {task.completedAt && (
-                  <p className="task-due">Completed {formatRelativeTime(task.completedAt)}</p>
-                )}
-              </div>
-              <div className="task-actions">
-                <button
-                  type="button"
-                  className="icon-button"
-                  title="Mark as not completed"
-                  aria-label={`Mark ${task.title} as not completed`}
-                  disabled={completed.pendingIds.has(task.id)}
-                  onClick={() => completed.markIncomplete(task)}
-                >
-                  <ReopenIcon />
-                </button>
-              </div>
-            </li>
-          ))}
+      {completed.tasks.length > 0 && (
+        <>
+          <button
+            type="button"
+            className="completed-toggle"
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <span className={`chevron${open ? " open" : ""}`} aria-hidden="true">
+              ›
+            </span>
+            Completed
+            <span className="completed-count">
+              {completed.tasks.length}
+              {completed.hasMore ? "+" : ""}
+            </span>
+          </button>
 
-          {completed.hasMore && (
-            <li className="load-more">
-              <button
-                type="button"
-                className="secondary"
-                disabled={completed.loadingMore}
-                onClick={completed.loadMore}
-              >
-                {completed.loadingMore ? "Loading…" : "Load more"}
-              </button>
-            </li>
+          {open && (
+            <ul className="task-list completed-list">
+              {completed.tasks.map((task) => (
+                <li key={task.id} className="task-row completed">
+                  <div className="task-main">
+                    <p className="task-title">{task.title}</p>
+                    {task.completedAt && (
+                      <p className="task-due">Completed {formatRelativeTime(task.completedAt)}</p>
+                    )}
+                  </div>
+                  <div className="task-actions">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title="Mark as not completed"
+                      aria-label={`Mark ${task.title} as not completed`}
+                      disabled={completed.pendingIds.has(task.id)}
+                      onClick={() => completed.markIncomplete(task)}
+                    >
+                      <ReopenIcon />
+                    </button>
+                  </div>
+                </li>
+              ))}
+
+              {completed.hasMore && (
+                <li className="load-more">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={completed.loadingMore}
+                    onClick={completed.loadMore}
+                  >
+                    {completed.loadingMore ? "Loading…" : "Load more"}
+                  </button>
+                </li>
+              )}
+            </ul>
           )}
-        </ul>
+        </>
       )}
     </section>
   );

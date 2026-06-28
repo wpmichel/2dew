@@ -22,7 +22,7 @@ export function TaskRow({ task, pending, onToggle, onUpdate, onDelete }: TaskRow
   const cancelled = useRef(false);
 
   function startEdit(field: EditField) {
-    if (pending) return;
+    if (pending || task.isCompleted) return;
     setDraft(
       field === "title"
         ? task.title

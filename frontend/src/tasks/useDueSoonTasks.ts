@@ -64,6 +64,15 @@ export function useDueSoonTasks(
           const items = await client.listDueSoonTasks();
           if (id !== requestId.current) return;
           setTasks(items);
+          // Drop snooze ids for tasks that are no longer due soon (completed, deleted, or rescheduled
+          // out of the window) so the set can't grow without bound. Only on a successful fetch — an
+          // empty list from a failed one must not wipe valid snoozes.
+          const live = new Set(items.map((task) => task.id));
+          setSnoozed((prev) => {
+            const next = new Set([...prev].filter((sid) => live.has(sid)));
+            if (next.size !== prev.size) saveSnoozed(next);
+            return next;
+          });
         } catch {
           if (id !== requestId.current) return;
           setTasks([]);

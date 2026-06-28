@@ -93,6 +93,18 @@ public class LivelinessTests : IClassFixture<ApiFactory>
         Assert.Empty(bobCompleted!.Items);
     }
 
+    [Fact]
+    public async Task Due_soon_never_includes_another_users_tasks()
+    {
+        var alice = await _factory.CreateUserClientAsync("duesoon-alice@example.com");
+        var bob = await _factory.CreateUserClientAsync("duesoon-bob@example.com");
+
+        await Create(alice, "Alice due tomorrow", dueInDays: 1);
+
+        var bobDueSoon = await bob.GetFromJsonAsync<List<TaskResponse>>("/api/tasks/due-soon");
+        Assert.Empty(bobDueSoon!);
+    }
+
     private static async Task<TaskResponse> Create(HttpClient client, string title, int? dueInDays = null)
     {
         object body = dueInDays is null

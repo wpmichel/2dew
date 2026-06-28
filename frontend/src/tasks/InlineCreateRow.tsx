@@ -10,12 +10,20 @@ interface InlineCreateRowProps {
 // (note, due date) are filled in afterwards by clicking into the created row.
 export function InlineCreateRow({ onCreate }: InlineCreateRowProps) {
   const [title, setTitle] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit() {
+  async function submit() {
     const trimmed = title.trim();
-    if (!trimmed) return;
-    setTitle("");
-    void onCreate({ title: trimmed, description: null, dueDateUtc: null });
+    if (!trimmed || submitting) return;
+    setSubmitting(true);
+    try {
+      await onCreate({ title: trimmed, description: null, dueDateUtc: null });
+      setTitle("");
+    } catch {
+      // The error is already on the global banner; keep the typed title so the user can retry.
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -37,6 +45,7 @@ export function InlineCreateRow({ onCreate }: InlineCreateRowProps) {
         value={title}
         maxLength={200}
         aria-label="Add a task"
+        disabled={submitting}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown}
       />

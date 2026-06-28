@@ -14,6 +14,9 @@ export interface CompletedTasksApi {
 
 const PAGE_SIZE = 20;
 
+// A burst of completions/deletes each bump reloadKey; coalesce them into one refetch.
+const RELOAD_DEBOUNCE_MS = 400;
+
 export interface UseCompletedTasksOptions {
   // Fired with the reopened task so the active list can re-insert it (as an optimistic overlay).
   onReopened?: (task: TaskResponse) => void;
@@ -63,24 +66,28 @@ export function useCompletedTasks(
     });
   }, []);
 
-  // Load the first page on mount and whenever the active list signals a change (reloadKey).
+  // Load the first page on mount and whenever the active list signals a change (reloadKey),
+  // debounced so a burst of completions/deletes coalesces into one refetch.
   useEffect(() => {
-    const id = ++requestId.current;
-    setStatus("loading");
-    setError(null);
-    (async () => {
-      try {
-        const page = await client.listCompletedTasks({ limit: PAGE_SIZE });
-        if (id !== requestId.current) return;
-        setTasks(page.items);
-        setNextCursor(page.nextCursor);
-        setStatus("ready");
-      } catch (err) {
-        if (id !== requestId.current) return;
-        setError(messageOf(err));
-        setStatus("error");
-      }
-    })();
+    const handle = setTimeout(() => {
+      const id = ++requestId.current;
+      setStatus("loading");
+      setError(null);
+      (async () => {
+        try {
+          const page = await client.listCompletedTasks({ limit: PAGE_SIZE });
+          if (id !== requestId.current) return;
+          setTasks(page.items);
+          setNextCursor(page.nextCursor);
+          setStatus("ready");
+        } catch (err) {
+          if (id !== requestId.current) return;
+          setError(messageOf(err));
+          setStatus("error");
+        }
+      })();
+    }, RELOAD_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
   }, [client, reloadKey]);
 
   const loadMore = useCallback(async () => {

@@ -60,13 +60,23 @@ public class AuthController : ControllerBase
         using var conn = _db.Create();
 
         var user = await conn.QuerySingleOrDefaultAsync<User>(
-            "SELECT * FROM Users WHERE Email = @email", new { email });
+            "SELECT Id, Email, PasswordHash, CreatedAt FROM Users WHERE Email = @email", new { email });
 
-        if (user is null ||
-            _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password)
-                == PasswordVerificationResult.Failed)
-        {
+        if (user is null)
             return Unauthorized(new ProblemDetails { Title = "Invalid email or password." });
+
+        var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        if (result == PasswordVerificationResult.Failed)
+            return Unauthorized(new ProblemDetails { Title = "Invalid email or password." });
+
+        // The hasher signals the stored hash uses outdated parameters; upgrade it in place so the
+        // next login verifies against the current scheme.
+        if (result == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            var rehashed = _hasher.HashPassword(user, request.Password);
+            await conn.ExecuteAsync(
+                "UPDATE Users SET PasswordHash = @rehashed WHERE Id = @id",
+                new { rehashed, id = user.Id });
         }
 
         return Ok(new AuthResponse(_tokens.CreateToken(user), user.Email));

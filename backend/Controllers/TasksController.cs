@@ -55,7 +55,7 @@ public class TasksController : ControllerBase
             // Keyset predicate over the same (CreatedAt, Id) order the index is built on,
             // so inserts/deletes mid-scroll never skip or duplicate a row.
             where.Add("(CreatedAt < @cursorCreatedAt OR (CreatedAt = @cursorCreatedAt AND Id < @cursorId))");
-            args.Add("cursorCreatedAt", c.CreatedAt);
+            args.Add("cursorCreatedAt", c.Timestamp);
             args.Add("cursorId", c.Id);
         }
 
@@ -106,10 +106,9 @@ public class TasksController : ControllerBase
             if (!Cursor.TryDecode(cursor, out var c))
                 return BadRequest(new ProblemDetails { Title = "Invalid cursor." });
 
-            // Same keyset shape as the active list, but the cursor's timestamp carries
-            // CompletedAt here (it is opaque to the client either way).
+            // Same keyset shape as the active list, ordered by CompletedAt instead.
             where.Add("(CompletedAt < @cursorTs OR (CompletedAt = @cursorTs AND Id < @cursorId))");
-            args.Add("cursorTs", c.CreatedAt);
+            args.Add("cursorTs", c.Timestamp);
             args.Add("cursorId", c.Id);
         }
 

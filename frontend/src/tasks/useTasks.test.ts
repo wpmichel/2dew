@@ -226,4 +226,119 @@ describe("useTasks optimistic behavior", () => {
     expect(result.current.tasks.map((t) => t.id)).toEqual(["a", "b"]);
     expect(result.current.error).toBe("Delete failed");
   });
+
+  it("surfaces an error and rethrows when a create fails", async () => {
+    const client = fakeApi([]);
+    const created = deferred<TaskResponse>();
+    client.createTask = vi.fn(() => created.promise);
+
+    const { result } = await renderReady(client);
+
+    let pending: Promise<void>;
+    let rejected = false;
+    act(() => {
+      pending = result.current
+        .createTask({ title: "New task", description: null, dueDateUtc: null })
+        .catch(() => {
+          rejected = true;
+        });
+    });
+    expect(result.current.tasks).toHaveLength(1); // optimistic insert
+
+    await act(async () => {
+      created.reject(new ApiError(500, "Create failed"));
+      await pending;
+    });
+
+    // Rolled back, surfaced on the banner, and rethrown so the create row keeps its input.
+    expect(rejected).toBe(true);
+    expect(result.current.tasks).toHaveLength(0);
+    expect(result.current.error).toBe("Create failed");
+  });
+
+  it("surfaces an error on the banner when an update fails (without rethrowing)", async () => {
+    const client = fakeApi([task("s1", { title: "Original" })]);
+    const update = deferred<TaskResponse>();
+    client.updateTask = vi.fn(() => update.promise);
+
+    const { result } = await renderReady(client);
+
+    let pending: Promise<void>;
+    act(() => {
+      pending = result.current.updateTask("s1", {
+        title: "Changed",
+        description: null,
+        dueDateUtc: null,
+        isCompleted: false,
+      });
+    });
+
+    await act(async () => {
+      update.reject(new ApiError(400, "Update failed"));
+      await pending; // resolves (no rethrow), so no .catch needed
+    });
+
+    expect(result.current.tasks[0].title).toBe("Original");
+    expect(result.current.error).toBe("Update failed");
+  });
+
+  it("appends the next page on loadMore and dedupes overlap", async () => {
+    const page1: PagedTasks = { items: [task("a"), task("b")], nextCursor: "cursor-1" };
+    const page2: PagedTasks = { items: [task("b"), task("c")], nextCursor: null };
+    const listTasks = vi.fn().mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
+    const client: TasksApi = {
+      listTasks,
+      createTask: vi.fn(),
+      updateTask: vi.fn(),
+      deleteTask: vi.fn(async () => undefined),
+    };
+
+    const { result } = renderHook(() => useTasks(client));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["a", "b"]);
+    expect(result.current.hasMore).toBe(true);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(listTasks).toHaveBeenCalledTimes(2);
+    expect(listTasks).toHaveBeenLastCalledWith({ cursor: "cursor-1", search: "", limit: 20 });
+    // "b" overlaps the first page and must not duplicate; "c" is appended; cursor exhausted.
+    expect(result.current.tasks.map((t) => t.id)).toEqual(["a", "b", "c"]);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("disables Load more immediately when the search term changes", async () => {
+    const page1: PagedTasks = { items: [task("a")], nextCursor: "cursor-1" };
+    const reload = deferred<PagedTasks>();
+    const listTasks = vi.fn().mockResolvedValueOnce(page1).mockReturnValueOnce(reload.promise);
+    const client: TasksApi = {
+      listTasks,
+      createTask: vi.fn(),
+      updateTask: vi.fn(),
+      deleteTask: vi.fn(async () => undefined),
+    };
+
+    const { result } = renderHook(() => useTasks(client));
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.hasMore).toBe(true);
+
+    // Changing the search nulls the cursor synchronously, before the debounced refetch resolves.
+    act(() => result.current.setSearch("x"));
+    expect(result.current.hasMore).toBe(false);
+
+    // loadMore is now a no-op; it must not send the cursor from the previous search.
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    await waitFor(() => expect(listTasks).toHaveBeenCalledTimes(2)); // mount + search refetch only
+    expect(listTasks).not.toHaveBeenCalledWith({ cursor: "cursor-1", search: "x", limit: 20 });
+
+    // Once the fresh first page lands, hasMore reflects the new cursor.
+    await act(async () => {
+      reload.resolve({ items: [task("a")], nextCursor: "cursor-2" });
+    });
+    await waitFor(() => expect(result.current.hasMore).toBe(true));
+  });
 });

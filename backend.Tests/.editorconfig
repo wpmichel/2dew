@@ -1,0 +1,19 @@
+# Mirrors backend/.editorconfig so test code follows the same style and surfaces unused using
+# directives (IDE0005) on build. Auto-fixable with `dotnet format`.
+root = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# The warning this project most wants surfaced: unnecessary using directives.
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Conventions the codebase already follows.
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
