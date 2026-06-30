@@ -16,11 +16,10 @@ public class TasksController : ControllerBase
     private const int DefaultLimit = 20;
     private const int MaxLimit = 100;
 
-    // Completed tasks fall out of the completed section once they are this old. They are not
-    // physically deleted here - a future purge job can reclaim them; this just bounds the view.
+    // Completed tasks fall out of the completed section once they are this old. 
     private const int CompletedTtlDays = 30;
 
-    // The due-soon rollup surfaces tasks due within this window (and anything overdue).
+    // The due-soon rollup surfaces tasks due or overdue within this window.
     private const int DueSoonDays = 2;
     private const int DueSoonLimit = 50;
 
@@ -223,9 +222,7 @@ public class TasksController : ControllerBase
 
     // Delete is a soft delete: it stamps DeletedAt rather than removing the row, so the record is
     // retained for a future cleanup job while being filtered out of every read query (so it never
-    // resurfaces - not even in the completed section). Scoped to the owner, so a non-owner matches
-    // no rows and gets the same 404 as a missing task. The DeletedAt IS NULL guard also makes a
-    // repeat delete a no-op that 404s, matching the old hard-delete's behavior on a gone row.
+    // resurfaces - not even in the completed section).
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {

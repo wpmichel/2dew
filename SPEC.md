@@ -1,14 +1,12 @@
 # To-Do Task Management App - Specification
 
 A small, full-stack to-do task management application: a .NET Core API backend, a
-React + TypeScript frontend, and a SQLite database. The emphasis is a focused product
-where every feature works end to end, not a broad feature surface.
+React + TypeScript frontend, and a SQLite database.
 
 ## Goals
 
 - A working multi-user to-do app: register/log in, then create, view, edit, complete,
   and delete your own tasks.
-- Every feature is complete on both sides (UI action → API → database → UI update).
 - Data persists across restarts.
 - A UI that stays responsive under rapid edits: every change applies optimistically and the
   list reconciles to the server's confirmed state, rolling back with a visible error on failure.
@@ -78,17 +76,17 @@ README.md           Setup, what was built, trade-offs, future work
 
 **Task**
 
-| Field       | Type      | Notes                                                                              |
-| ----------- | --------- | ---------------------------------------------------------------------------------- |
-| Id          | Guid      | Primary key                                                                        |
-| UserId      | Guid      | Owner; foreign key to User                                                         |
-| Title       | string    | Required, non-empty, max length enforced                                           |
-| Description | string?   | Optional                                                                           |
-| DueDateUtc  | DateTime? | Optional; stored in UTC                                                            |
-| CompletedAt | DateTime? | UTC; null = active, non-null = completed. `IsCompleted` is derived from it |
+| Field       | Type      | Notes                                                                       |
+| ----------- | --------- | --------------------------------------------------------------------------- |
+| Id          | Guid      | Primary key                                                                 |
+| UserId      | Guid      | Owner; foreign key to User                                                  |
+| Title       | string    | Required, non-empty, max length enforced                                    |
+| Description | string?   | Optional                                                                    |
+| DueDateUtc  | DateTime? | Optional; stored in UTC                                                     |
+| CompletedAt | DateTime? | UTC; null = active, non-null = completed. `IsCompleted` is derived from it  |
 | DeletedAt   | DateTime? | UTC; null = live, non-null = soft-deleted. Filtered out of every read query |
-| CreatedAt   | DateTime  | UTC                                                                                |
-| UpdatedAt   | DateTime  | UTC; set on every modification                                                     |
+| CreatedAt   | DateTime  | UTC                                                                         |
+| UpdatedAt   | DateTime  | UTC; set on every modification                                              |
 
 Completing a task (checkbox) sets `CompletedAt`; completed tasks surface in a separate "completed"
 section where they can be reopened (clearing `CompletedAt`), and age out of that view after a fixed
@@ -112,16 +110,16 @@ due-soon, and get-by-id - so a deleted task disappears from all views and never 
 
 All task endpoints are owner-scoped and require a valid JWT.
 
-| Method | Route                  | Purpose                                                             |
-| ------ | ---------------------- | ------------------------------------------------------------------- |
-| POST   | `/api/auth/register`   | Create account, return JWT                                          |
-| POST   | `/api/auth/login`      | Authenticate, return JWT                                            |
-| GET    | `/api/tasks`           | List the caller's active tasks (paginated; optional search)         |
-| GET    | `/api/tasks/completed` | List the caller's completed tasks (paginated, TTL-bounded)          |
-| GET    | `/api/tasks/due-soon`  | List active tasks due within 2 days or overdue (unpaginated, ≤50)   |
-| POST   | `/api/tasks`           | Create a task                                                       |
-| GET    | `/api/tasks/{id}`      | Get one task (owner only)                                           |
-| PUT    | `/api/tasks/{id}`      | Update a task; `isCompleted` sets/clears `CompletedAt` (owner only) |
+| Method | Route                  | Purpose                                                               |
+| ------ | ---------------------- | --------------------------------------------------------------------- |
+| POST   | `/api/auth/register`   | Create account, return JWT                                            |
+| POST   | `/api/auth/login`      | Authenticate, return JWT                                              |
+| GET    | `/api/tasks`           | List the caller's active tasks (paginated; optional search)           |
+| GET    | `/api/tasks/completed` | List the caller's completed tasks (paginated, TTL-bounded)            |
+| GET    | `/api/tasks/due-soon`  | List active tasks due within 2 days or overdue (unpaginated, ≤50)     |
+| POST   | `/api/tasks`           | Create a task                                                         |
+| GET    | `/api/tasks/{id}`      | Get one task (owner only)                                             |
+| PUT    | `/api/tasks/{id}`      | Update a task; `isCompleted` sets/clears `CompletedAt` (owner only)   |
 | DELETE | `/api/tasks/{id}`      | Soft-delete a task; hidden from every view, row retained (owner only) |
 
 - **`GET /api/tasks` is paginated and searchable.** Query parameters:
