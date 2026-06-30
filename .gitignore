@@ -39,6 +39,15 @@ ScaffoldingReadMe.txt
 # dotenv environment variables file
 .env
 
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# OpenAPI document emitted on backend build; regenerated deterministically.
+# The committed contract artifact is the frontend's generated src/api/schema.ts.
+/backend/backend.json
+
 # Others
 ~$*
 *~
@@ -55,3 +64,12 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Source control
+.jj
+
+# AI agent scratchpad (Claude Code session notes)
+.remember/
+
+# Frontend build output
+frontend/dist/
